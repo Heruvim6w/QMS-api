@@ -18,12 +18,17 @@ RUN apk update && apk add --no-cache \
     curl \
     openssl \
     bash \
-    netcat-openbsd
+    netcat-openbsd \
+    autoconf \
+    g++ \
+    make
 
 # Устанавливаем расширения PHP
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) gd \
-    && docker-php-ext-install pdo pdo_pgsql pgsql zip bcmath mbstring exif pcntl
+    && docker-php-ext-install pdo pdo_pgsql pgsql zip bcmath mbstring exif pcntl \
+    && pecl install redis \
+    && docker-php-ext-enable redis
 
 # Устанавливаем Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
