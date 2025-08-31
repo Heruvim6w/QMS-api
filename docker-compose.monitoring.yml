@@ -3,7 +3,7 @@ version: '3.8'
 services:
   prometheus:
     image: prom/prometheus:latest
-    container_name: messenger-prometheus
+    container_name: qms-prometheus
     ports:
       - "9090:9090"
     volumes:
@@ -22,7 +22,7 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
     networks:
-      - messenger-network
+      - qms-network
 
 volumes:
   prometheus_data:

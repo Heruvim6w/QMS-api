@@ -1,12 +1,12 @@
 version: '3.8'
 
 services:
-    app:
+    qms-app:
         build:
             context: .
             dockerfile: Dockerfile
-        image: messenger-app
-        container_name: messenger-app
+        image: heruvim6w/qms-api
+        container_name: qms-api
         restart: unless-stopped
         working_dir: /var/www/html
         volumes:
@@ -17,54 +17,50 @@ services:
         ports:
             - "8000:8000"
         environment:
-            - DB_CONNECTION=pgsql
-            - DB_HOST=db
-            - DB_PORT=5432
-            - DB_DATABASE=messenger
-            - DB_USERNAME=messenger
-            - DB_PASSWORD=messenger
-            - REDIS_HOST=redis
-            - REDIS_PORT=6379
+            - APP_NAME=QMS API
+            - DB_HOST=qms-db
+            - DB_DATABASE=qms_db
+            - DB_USERNAME=qms_user
+            - DB_PASSWORD=qms_password
+            - REDIS_HOST=qms-redis
         networks:
-            - messenger-network
+            - qms-network
         depends_on:
-            - db
-            - redis
+            - qms-db
+            - qms-redis
 
-    db:
+    qms-db:
         image: postgres:15-alpine
-        container_name: messenger-db
+        container_name: qms-db
         restart: unless-stopped
         environment:
-            POSTGRES_DB: messenger
-            POSTGRES_USER: messenger
-            POSTGRES_PASSWORD: messenger
-            PGDATA: /var/lib/postgresql/data/pgdata
-        volumes:
-            - postgres_data:/var/lib/postgresql/data
-            - ./docker/postgresql/conf:/etc/postgresql
+            POSTGRES_DB: qms_db
+            POSTGRES_USER: qms_user
+            POSTGRES_PASSWORD: qms_password
         ports:
             - "5432:5432"
+        volumes:
+            - qms_postgres_data:/var/lib/postgresql/data
         networks:
-            - messenger-network
+            - qms-network
 
-    redis:
+    qms-redis:
         image: redis:7-alpine
-        container_name: messenger-redis
+        container_name: qms-redis
         restart: unless-stopped
         ports:
             - "6379:6379"
         volumes:
-            - redis_data:/data
+            - qms_redis_data:/data
         networks:
-            - messenger-network
+            - qms-network
 
 volumes:
-    postgres_data:
+    qms_postgres_data:
         driver: local
-    redis_data:
+    qms_redis_data:
         driver: local
 
 networks:
-    messenger-network:
+    qms-network:
         driver: bridge
