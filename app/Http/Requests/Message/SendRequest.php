@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Message;
 
+use App\Http\Requests\BaseJsonFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 
-class SendRequest extends FormRequest
+class SendRequest extends BaseJsonFormRequest
 {
     /**
      * Determine if the user is authorized to make this request.

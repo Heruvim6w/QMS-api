@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\Message;
 
+use App\Http\Requests\BaseJsonFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 
-class UploadFileRequest extends FormRequest
+class UploadFileRequest extends BaseJsonFormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
