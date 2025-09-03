@@ -36,10 +36,10 @@ class MessageController extends Controller
             throw new \RuntimeException('Sender not found');
         }
 
-        $receiver = User::findOrFail($data->receiver_id);
+        $receiver = User::findOrFail($data['receiver_id']);
 
         $encryptedData = $this->encryptionService->encryptForUser(
-            $data->content,
+            $data['content'],
             $receiver->public_key
         );
 
@@ -123,7 +123,7 @@ class MessageController extends Controller
             throw new \RuntimeException('User not found');
         }
 
-        $partnerId = $data->user_id;
+        $partnerId = $data['user_id'];
 
         $messages = Message::where(static function ($query) use ($user, $partnerId) {
             $query->where('sender_id', $user->id)
@@ -171,9 +171,7 @@ class MessageController extends Controller
             );
         }
 
-        $data = $request->validated();
-
-        $file = $data->file('file');
+        $file = $request->file('file');
         $path = $file->store('uploads', 'public');
 
         $message->update(['file_path' => $path]);
