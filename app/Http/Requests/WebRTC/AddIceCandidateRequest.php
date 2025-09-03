@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\WebRTC;
 
+use App\Http\Requests\BaseJsonFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 
-class AddIceCandidateRequest extends FormRequest
+class AddIceCandidateRequest extends BaseJsonFormRequest
 {
     /**
      * Determine if the user is authorized to make this request.

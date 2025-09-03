@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\User;
 
+use App\Http\Requests\BaseJsonFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 
-class LoginRequest extends FormRequest
+class LoginRequest extends BaseJsonFormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
