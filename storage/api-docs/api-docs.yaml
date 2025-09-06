@@ -1,0 +1,773 @@
+openapi: 3.0.0
+info:
+  title: 'QMS API Documentation'
+  description: 'Secure messenger API with end-to-end encryption'
+  contact:
+    name: Heruvim6w
+    email: heruvim.6w@gmail.com
+  license:
+    name: MIT
+    url: 'https://opensource.org/licenses/MIT'
+  version: 1.0.0
+servers:
+  -
+    url: 'http://localhost:8000'
+    description: 'QMS API Server'
+paths:
+  /api/v1/register:
+    post:
+      tags:
+        - Authentication
+      summary: 'Register a new user'
+      operationId: 6796c44e1f6079c411abbfed066c5907
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - name
+                - email
+                - password
+                - password_confirmation
+              properties:
+                name:
+                  type: string
+                  example: 'John Doe'
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                password:
+                  type: string
+                  format: password
+                  example: password
+                password_confirmation:
+                  type: string
+                  format: password
+                  example: password
+              type: object
+      responses:
+        201:
+          description: 'User registered successfully'
+          content:
+            application/json:
+              schema:
+                properties:
+                  user:
+                    $ref: '#/components/schemas/User'
+                  access_token:
+                    type: string
+                    example: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+                  token_type:
+                    type: string
+                    example: bearer
+                  expires_in:
+                    type: integer
+                    example: 3600
+                type: object
+        422:
+          description: 'Validation error'
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  errors:
+                    type: object
+                    example:
+                      email:
+                        - 'The email has already been taken.'
+                type: object
+  /api/v1/login:
+    post:
+      tags:
+        - Authentication
+      summary: 'Authenticate user and return JWT token'
+      operationId: da2ca4d7a5cdec77b8b45a20373535cb
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                password:
+                  type: string
+                  format: password
+                  example: password
+              type: object
+      responses:
+        200:
+          description: 'Login successful'
+          content:
+            application/json:
+              schema:
+                properties:
+                  access_token:
+                    type: string
+                    example: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+                  token_type:
+                    type: string
+                    example: bearer
+                  expires_in:
+                    type: integer
+                    example: 3600
+                  user:
+                    $ref: '#/components/schemas/User'
+                type: object
+        401:
+          description: 'Invalid credentials'
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    type: string
+                    example: Unauthorized
+                type: object
+  /api/v1/logout:
+    post:
+      tags:
+        - Authentication
+      summary: 'Log the user out (Invalidate the token)'
+      operationId: c4eddaf1a2e990cc90e4326c0d731d41
+      responses:
+        200:
+          description: 'Successfully logged out'
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                    example: 'Successfully logged out'
+                type: object
+        401:
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                type: object
+      security:
+        -
+          bearerAuth: []
+  /api/v1/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: 'Refresh a JWT token'
+      operationId: 48bc0aaee4ed3ed89ef12f9065e2df85
+      responses:
+        200:
+          description: 'Token refreshed successfully'
+          content:
+            application/json:
+              schema:
+                properties:
+                  access_token:
+                    type: string
+                    example: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...
+                  token_type:
+                    type: string
+                    example: bearer
+                  expires_in:
+                    type: integer
+                    example: 3600
+                type: object
+        401:
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                type: object
+      security:
+        -
+          bearerAuth: []
+  /api/v1/me:
+    get:
+      tags:
+        - Authentication
+      summary: 'Get the authenticated User'
+      operationId: ae2f8c1ae1f9c5aee99c01f5d13da30b
+      responses:
+        200:
+          description: 'User details'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        401:
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated.
+                type: object
+      security:
+        -
+          bearerAuth: []
+  /api/v1/messages:
+    get:
+      tags:
+        - Messages
+      summary: 'Get conversation between users'
+      operationId: b13150577ed04930b5c48b11966766a1
+      parameters:
+        -
+          name: user_id
+          in: query
+          description: 'ID of the conversation partner'
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 'List of messages in conversation'
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        400:
+          description: 'Missing user_id parameter'
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    type: string
+                    example: 'user_id parameter is required'
+                type: object
+      security:
+        -
+          bearerAuth: []
+    post:
+      tags:
+        - Messages
+      summary: 'Send an encrypted message'
+      operationId: 06659e15b117ed642f25c84ec1563aa9
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - receiver_id
+                - content
+              properties:
+                receiver_id:
+                  type: integer
+                  example: 2
+                content:
+                  type: string
+                  example: 'Hello, how are you?'
+                type:
+                  type: string
+                  enum:
+                    - text
+                    - image
+                    - voice
+                    - video
+                    - file
+                  example: text
+              type: object
+      responses:
+        201:
+          description: 'Message sent successfully'
+          content:
+            application/json:
+              schema:
+                properties:
+                  id:
+                    type: integer
+                    example: 1
+                  status:
+                    type: string
+                    example: sent
+                  created_at:
+                    type: string
+                    format: date-time
+                type: object
+        422:
+          description: 'Validation error'
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  errors:
+                    type: object
+                type: object
+        404:
+          description: 'Receiver not found'
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    type: string
+                    example: 'Receiver not found'
+                type: object
+      security:
+        -
+          bearerAuth: []
+  '/api/v1/messages/{id}':
+    get:
+      tags:
+        - Messages
+      summary: 'Get a specific message'
+      operationId: 38efca5f23703e7e98b2a79bb05fac9f
+      parameters:
+        -
+          name: id
+          in: path
+          description: 'Message ID'
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: 'Message details'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        403:
+          description: 'Access denied'
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    type: string
+                    example: 'Access denied'
+                type: object
+        404:
+          description: 'Message not found'
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    type: string
+                    example: 'Message not found'
+                type: object
+        500:
+          description: 'Decryption error'
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    type: string
+                    example: 'Failed to decrypt message'
+                type: object
+      security:
+        -
+          bearerAuth: []
+  '/api/v1/messages/{id}/upload':
+    post:
+      tags:
+        - Messages
+      summary: 'Upload a file for a message'
+      operationId: c770e9aee5364b372845e66acdbbd505
+      parameters:
+        -
+          name: id
+          in: path
+          description: 'Message ID'
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              required:
+                - file
+              properties:
+                file:
+                  description: 'File to upload'
+                  type: string
+                  format: binary
+              type: object
+      responses:
+        200:
+          description: 'File uploaded successfully'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: string
+                    example: file_uploaded
+                  file_path:
+                    type: string
+                    example: uploads/file.jpg
+                type: object
+        403:
+          description: 'Access denied'
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    type: string
+                    example: 'Access denied'
+                type: object
+        404:
+          description: 'Message not found'
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    type: string
+                    example: 'Message not found'
+                type: object
+      security:
+        -
+          bearerAuth: []
+  /api/v1/calls/initiate:
+    post:
+      tags:
+        - WebRTC
+      summary: 'Initiate a WebRTC call'
+      operationId: 3890b3fdc339d938d1a5d50765f7a2d8
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - receiver_id
+              properties:
+                receiver_id:
+                  type: integer
+                  example: 2
+                is_video:
+                  type: boolean
+                  example: true
+              type: object
+      responses:
+        200:
+          description: 'Call initiated successfully'
+          content:
+            application/json:
+              schema:
+                properties:
+                  call_id:
+                    type: string
+                    example: abc123def456
+                  sdp_offer:
+                    type: string
+                    example: 'v=0\r\no=- 1234567890 1 IN IP4 127.0.0.1\r\n...'
+                  ice_candidates:
+                    type: array
+                    items:
+                      type: string
+                      example: 'candidate:1 1 UDP 2122252543 192.168.1.1 56789 typ host'
+                type: object
+        422:
+          description: 'Validation error'
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  errors:
+                    type: object
+                type: object
+      security:
+        -
+          bearerAuth: []
+  /api/v1/calls/answer:
+    post:
+      tags:
+        - WebRTC
+      summary: 'Answer a WebRTC call'
+      operationId: 2aae5066f6f4c0b25c167c91c79f59eb
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - call_id
+                - sdp_answer
+              properties:
+                call_id:
+                  type: string
+                  example: abc123def456
+                sdp_answer:
+                  type: string
+                  example: 'v=0\r\no=- 1234567890 1 IN IP4 127.0.0.1\r\n...'
+              type: object
+      responses:
+        200:
+          description: 'Call answered successfully'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: string
+                    example: call_answered
+                type: object
+        422:
+          description: 'Validation error'
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  errors:
+                    type: object
+                type: object
+      security:
+        -
+          bearerAuth: []
+  /api/v1/calls/ice-candidate:
+    post:
+      tags:
+        - WebRTC
+      summary: 'Add ICE candidate for WebRTC call'
+      operationId: fdffa394fd494de230acf84816201276
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              required:
+                - call_id
+                - candidate
+              properties:
+                call_id:
+                  type: string
+                  example: abc123def456
+                candidate:
+                  type: string
+                  example: 'candidate:1 1 UDP 2122252543 192.168.1.1 56789 typ host'
+              type: object
+      responses:
+        200:
+          description: 'ICE candidate added successfully'
+          content:
+            application/json:
+              schema:
+                properties:
+                  status:
+                    type: string
+                    example: candidate_added
+                type: object
+        422:
+          description: 'Validation error'
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                    example: 'The given data was invalid.'
+                  errors:
+                    type: object
+                type: object
+      security:
+        -
+          bearerAuth: []
+components:
+  schemas:
+    Error:
+      title: Error
+      description: 'Error response'
+      properties:
+        error:
+          description: 'Error message'
+          type: string
+          example: 'Something went wrong'
+      type: object
+    ValidationError:
+      title: ValidationError
+      description: 'Validation error response'
+      properties:
+        message:
+          description: 'Error message'
+          type: string
+          example: 'The given data was invalid.'
+        errors:
+          description: 'Validation errors'
+          type: object
+          example:
+            email:
+              - 'The email field is required.'
+            password:
+              - 'The password field is required.'
+      type: object
+    Success:
+      title: Success
+      description: 'Success response'
+      properties:
+        message:
+          description: 'Success message'
+          type: string
+          example: 'Operation completed successfully'
+      type: object
+    Message:
+      title: Message
+      description: 'Message model with end-to-end encryption'
+      required:
+        - sender_id
+        - receiver_id
+        - encrypted_content
+        - iv
+        - type
+      properties:
+        id:
+          description: 'Unique identifier for the message'
+          type: integer
+          format: int64
+          example: 1
+        sender_id:
+          description: 'ID of the user who sent the message'
+          type: integer
+          format: int64
+          example: 1
+        receiver_id:
+          description: 'ID of the user who received the message'
+          type: integer
+          format: int64
+          example: 2
+        encrypted_content:
+          description: 'Encrypted content of the message'
+          type: string
+          example: 7b22746167223a2230303030303030303030303030303030222c2263697068657274657874223a226362393966336536227d
+        encryption_key:
+          description: 'Encrypted session key for decryption'
+          type: string
+          example: a1b2c3d4e5f6...
+        iv:
+          description: 'Initialization vector for decryption'
+          type: string
+          example: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4
+        type:
+          description: 'Type of the message'
+          type: string
+          enum:
+            - text
+            - image
+            - voice
+            - video
+            - file
+          example: text
+        file_path:
+          description: 'Path to the uploaded file (if any)'
+          type: string
+          example: uploads/file.jpg
+        created_at:
+          description: 'Message creation timestamp'
+          type: string
+          format: date-time
+          example: '2023-01-01T12:00:00Z'
+        read_at:
+          description: 'Message read timestamp'
+          type: string
+          format: date-time
+          example: '2023-01-01T12:05:00Z'
+        sender:
+          $ref: '#/components/schemas/User'
+        receiver:
+          $ref: '#/components/schemas/User'
+      type: object
+    User:
+      title: User
+      description: 'User model with encryption keys'
+      required:
+        - name
+        - email
+        - password
+      properties:
+        id:
+          description: 'Unique identifier for the user'
+          type: integer
+          format: int64
+          example: 1
+        name:
+          description: "User's full name"
+          type: string
+          example: 'John Doe'
+        email:
+          description: "User's email address"
+          type: string
+          format: email
+          example: john@example.com
+        public_key:
+          description: "User's public encryption key"
+          type: string
+          example: '-----BEGIN PUBLIC KEY-----...'
+        created_at:
+          description: 'User creation timestamp'
+          type: string
+          format: date-time
+          example: '2023-01-01T12:00:00Z'
+        updated_at:
+          description: 'User last update timestamp'
+          type: string
+          format: date-time
+          example: '2023-01-01T12:00:00Z'
+        sent_messages:
+          description: 'Messages sent by the user'
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        received_messages:
+          description: 'Messages received by the user'
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+      type: object
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+tags:
+  -
+    name: Authentication
+    description: 'API Endpoints for User Authentication'
+  -
+    name: Messages
+    description: 'API Endpoints for Messages'
+  -
+    name: WebRTC
+    description: 'API Endpoints for WebRTC Calls'
+security:
+  -
+    bearerAuth: []
