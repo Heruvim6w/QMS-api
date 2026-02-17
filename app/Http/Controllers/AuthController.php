@@ -10,7 +10,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use OpenApi\Annotations as OA;
-use Symfony\Component\HttpFoundation\Response as ResponseAlias;
+use Symfony\Component\HttpFoundation\Response;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 /**
@@ -80,7 +80,7 @@ class AuthController extends Controller
                 'token_type' => 'bearer',
                 'expires_in' => config('jwt.ttl') * 60
             ],
-            ResponseAlias::HTTP_CREATED
+            Response::HTTP_CREATED
         );
     }
 
@@ -125,7 +125,7 @@ class AuthController extends Controller
         if (!$token = JWTAuth::attempt($credentials)) {
             return response()->json(
                 ['error' => 'Unauthorized'],
-                ResponseAlias::HTTP_UNAUTHORIZED
+                Response::HTTP_UNAUTHORIZED
             );
         }
 
