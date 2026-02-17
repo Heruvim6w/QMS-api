@@ -9,11 +9,13 @@ use App\Http\Requests\Message\SendRequest;
 use App\Http\Requests\Message\UploadFileRequest;
 use App\Models\Message;
 use App\Models\User;
+use App\Services\ChatService;
 use App\Services\EncryptionService;
 use Illuminate\Support\Facades\Auth;
 use OpenApi\Annotations as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response as ResponseAlias;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 /**
  * @OA\Tag(
@@ -24,11 +26,12 @@ use Symfony\Component\HttpFoundation\Response as ResponseAlias;
 class MessageController extends Controller
 {
     protected EncryptionService $encryptionService;
+    protected ChatService $chatService;
 
-    public function __construct(EncryptionService $encryptionService)
+    public function __construct(EncryptionService $encryptionService, ChatService $chatService)
     {
         $this->encryptionService = $encryptionService;
-        $this->middleware('auth:api');
+        $this->chatService = $chatService;
     }
 
     /**
@@ -79,10 +82,11 @@ class MessageController extends Controller
         $sender = Auth::user();
 
         if (!$sender) {
-            throw new \RuntimeException('Sender not found');
+            throw new AccessDeniedHttpException();
         }
 
         $receiver = User::findOrFail($data['receiver_id']);
+        $chat = $this->findOrCreateChat($receiver, $data['chat_id']);
 
         $encryptedData = $this->encryptionService->encryptForUser(
             $data['content'],
@@ -349,5 +353,10 @@ class MessageController extends Controller
             'status' => 'file_uploaded',
             'file_path' => $path
         ]);
+    }
+
+    private function findOrCreateChat(User $receiver, ?int $chatId = null)
+    {
+        return $this->chatService->findOrCreate($receiver, $chatId);
     }
 }

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use OpenApi\Annotations as OA;
 
 /**
@@ -24,18 +24,18 @@ use OpenApi\Annotations as OA;
  *         example=1
  *     ),
  *     @OA\Property(
+ *         property="chat_id",
+ *         type="integer",
+ *         format="int64",
+ *         description="Identifier for the chat",
+ *         example=1
+ *     ),
+ *     @OA\Property(
  *         property="sender_id",
  *         type="integer",
  *         format="int64",
  *         description="ID of the user who sent the message",
  *         example=1
- *     ),
- *     @OA\Property(
- *         property="receiver_id",
- *         type="integer",
- *         format="int64",
- *         description="ID of the user who received the message",
- *         example=2
  *     ),
  *     @OA\Property(
  *         property="encrypted_content",
@@ -63,12 +63,6 @@ use OpenApi\Annotations as OA;
  *         example="text"
  *     ),
  *     @OA\Property(
- *         property="file_path",
- *         type="string",
- *         description="Path to the uploaded file (if any)",
- *         example="uploads/file.jpg"
- *     ),
- *     @OA\Property(
  *         property="created_at",
  *         type="string",
  *         format="date-time",
@@ -86,21 +80,15 @@ use OpenApi\Annotations as OA;
  *         property="sender",
  *         ref="#/components/schemas/User"
  *     ),
- *     @OA\Property(
- *         property="receiver",
- *         ref="#/components/schemas/User"
- *     )
  * )
  */
 class Message extends Model
 {
-    use HasFactory;
-
-    const TYPE_TEXT = 'text';
-    const TYPE_IMAGE = 'image';
-    const TYPE_VOICE = 'voice';
-    const TYPE_VIDEO = 'video';
-    const TYPE_FILE = 'file';
+    public const TYPE_TEXT = 'text';
+    public const TYPE_IMAGE = 'image';
+    public const TYPE_VOICE = 'voice';
+    public const TYPE_VIDEO = 'video';
+    public const TYPE_FILE = 'file';
 
     protected $fillable = [
         'sender_id',
@@ -122,8 +110,13 @@ class Message extends Model
         return $this->belongsTo(User::class, 'sender_id');
     }
 
-    public function receiver(): BelongsTo
+    public function chat(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'receiver_id');
+        return $this->belongsTo(Chat::class);
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(Attachment::class);
     }
 }
