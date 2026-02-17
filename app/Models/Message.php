@@ -91,32 +91,97 @@ class Message extends Model
     public const TYPE_FILE = 'file';
 
     protected $fillable = [
+        'chat_id',
         'sender_id',
-        'receiver_id',
         'encrypted_content',
         'encryption_key',
         'iv',
         'type',
-        'file_path',
-        'read_at',
     ];
 
     protected $casts = [
-        'read_at' => 'datetime',
+        'chat_id' => 'integer',
+        'sender_id' => 'integer',
     ];
 
+    /**
+     * Отправитель сообщения
+     */
     public function sender(): BelongsTo
     {
         return $this->belongsTo(User::class, 'sender_id');
     }
 
+    /**
+     * Чат, к которому принадлежит сообщение
+     */
     public function chat(): BelongsTo
     {
         return $this->belongsTo(Chat::class);
     }
 
+    /**
+     * Вложения сообщения
+     */
     public function attachments(): HasMany
     {
         return $this->hasMany(Attachment::class);
+    }
+
+    /**
+     * Статусы прочтения
+     */
+    public function readStatuses(): HasMany
+    {
+        return $this->hasMany(MessageReadStatus::class);
+    }
+
+    /**
+     * Проверка, прочитано ли сообщение пользователем
+     */
+    public function isReadBy(User $user): bool
+    {
+        return $this->readStatuses()
+            ->where('user_id', $user->id)
+            ->whereNotNull('read_at')
+            ->exists();
+    }
+
+    /**
+     * Пометить сообщение как прочитанное
+     */
+    public function markAsReadBy(User $user): void
+    {
+        $this->readStatuses()->updateOrCreate(
+            ['user_id' => $user->id],
+            ['read_at' => now()]
+        );
+    }
+
+    /**
+     * Пометить сообщение как доставленное
+     */
+    public function markAsDeliveredTo(User $user): void
+    {
+        $this->readStatuses()->updateOrCreate(
+            ['user_id' => $user->id],
+            ['delivered_at' => now()]
+        );
+    }
+
+    /**
+     * Проверка, является ли сообщение аудио
+     */
+    public function isVoice(): bool
+    {
+        return $this->type === self::TYPE_VOICE;
+    }
+
+    /**
+     * Проверка, есть ли вложения
+     */
+    public function hasAttachments(): bool
+    {
+        return $this->attachments()->exists();
     }
 }

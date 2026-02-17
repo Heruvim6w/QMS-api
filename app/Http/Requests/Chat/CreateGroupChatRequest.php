@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Http\Requests\Message;
+namespace App\Http\Requests\Chat;
 
 use App\Http\Requests\BaseJsonFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
 
-class SendRequest extends BaseJsonFormRequest
+class CreateGroupChatRequest extends BaseJsonFormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -25,10 +25,10 @@ class SendRequest extends BaseJsonFormRequest
     public function rules(): array
     {
         return [
-            'chat_id' => 'required_without:receiver_id|integer|exists:chats,id',
-            'receiver_id' => 'required_without:chat_id|integer|exists:users,id',
-            'content' => 'required|string',
-            'type' => 'sometimes|in:text,image,voice,video,file',
+            'name' => 'required|string|max:255',
+            'user_ids' => 'required|array|min:1',
+            'user_ids.*' => 'required|integer|exists:users,id',
         ];
     }
 }
+

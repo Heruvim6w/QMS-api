@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\Message;
 
 use App\Http\Requests\BaseJsonFormRequest;
@@ -23,7 +25,7 @@ class GetRequest extends BaseJsonFormRequest
     public function rules(): array
     {
         return [
-            'user_id' => 'required|exists:users,id',
+            'chat_id' => 'required|integer|exists:chats,id',
         ];
     }
 }
