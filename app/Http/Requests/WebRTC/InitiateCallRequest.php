@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\WebRTC;
 
 use App\Http\Requests\BaseJsonFormRequest;
@@ -23,8 +25,10 @@ class InitiateCallRequest extends BaseJsonFormRequest
     public function rules(): array
     {
         return [
-            'receiver_id' => 'required|exists:users,id',
-            'is_video' => 'boolean',
+            'chat_id' => 'required|integer|exists:chats,id',
+            'callee_id' => 'required|integer|exists:users,id',
+            'type' => 'required|in:audio,video',
+            'sdp_offer' => 'required|string',
         ];
     }
 }

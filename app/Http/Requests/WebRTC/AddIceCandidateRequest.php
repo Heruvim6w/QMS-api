@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\WebRTC;
 
 use App\Http\Requests\BaseJsonFormRequest;
@@ -23,8 +25,8 @@ class AddIceCandidateRequest extends BaseJsonFormRequest
     public function rules(): array
     {
         return [
-            'call_id' => 'required',
-            'candidate' => 'required',
+            'call_uuid' => 'required|string|exists:calls,call_uuid',
+            'candidate' => 'required|string',
         ];
     }
 }

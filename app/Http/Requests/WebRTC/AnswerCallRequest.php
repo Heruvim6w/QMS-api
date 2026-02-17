@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Requests\WebRTC;
 
 use App\Http\Requests\BaseJsonFormRequest;
@@ -23,8 +25,8 @@ class AnswerCallRequest extends BaseJsonFormRequest
     public function rules(): array
     {
         return [
-            'call_id' => 'required',
-            'sdp_answer' => 'required',
+            'call_uuid' => 'required|string|exists:calls,call_uuid',
+            'sdp_answer' => 'required|string',
         ];
     }
 }
