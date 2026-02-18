@@ -11,7 +11,9 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('v1')->group(function () {
     // Public routes
     Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login']); // Step 1: Send confirmation email
+    Route::post('/login/confirm', [AuthController::class, 'confirmLogin']); // Step 2: Confirm with token (API)
+    Route::get('/login/confirm/{token}', [AuthController::class, 'confirmLoginWeb']); // Step 2: Confirm with token (Web link)
 
     // Protected routes
     Route::middleware('auth:api')->group(function () {
@@ -24,6 +26,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/users/username', [UserProfileController::class, 'setUsername']);
         Route::get('/users/search', [UserProfileController::class, 'searchUser']);
         Route::get('/users/{identifier}', [UserProfileController::class, 'getUserByIdentifier']);
+
+        // Session management routes
+        Route::get('/sessions', [UserProfileController::class, 'getSessions']);
+        Route::delete('/sessions/{sessionId}', [UserProfileController::class, 'endSession']);
 
         // Chat routes
         Route::get('/chats', [ChatController::class, 'index']);

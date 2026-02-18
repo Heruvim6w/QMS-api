@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\User\SearchUserRequest;
 use App\Http\Requests\User\SetUsernameRequest;
 use App\Models\User;
+use App\Services\LoginService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use OpenApi\Annotations as OA;
@@ -209,5 +210,85 @@ class UserProfileController extends Controller
             'username' => $user->username,
         ]);
     }
-}
+
+    /**
+     * @OA\Get(
+     *     path="/api/v1/sessions",
+     *     summary="Get all active sessions for current user",
+     *     tags={"Users"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="List of active sessions",
+     *         @OA\JsonContent(
+     *             type="array",
+     *             @OA\Items(
+     *                 @OA\Property(property="id", type="integer"),
+     *                 @OA\Property(property="device_name", type="string"),
+     *                 @OA\Property(property="ip_address", type="string"),
+     *                 @OA\Property(property="confirmed_at", type="string", format="date-time"),
+     *                 @OA\Property(property="expires_at", type="string", format="date-time")
+     *             )
+     *         )
+     *     )
+     * )
+     */
+    public function getSessions(): JsonResponse
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $loginService = new LoginService();
+        $sessions = $loginService->getConfirmedSessions($user);
+
+        return response()->json($sessions->map(function ($session) {
+            return [
+                'id' => $session->id,
+                'device_name' => $session->device_name,
+                'ip_address' => $session->ip_address,
+                'confirmed_at' => $session->confirmed_at,
+                'expires_at' => $session->expires_at,
+            ];
+        }));
+    }
+
+    /**
+     * @OA\Delete(
+     *     path="/api/v1/sessions/{sessionId}",
+     *     summary="End a session (logout from device)",
+     *     tags={"Users"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="sessionId",
+     *         in="path",
+     *         required=true,
+     *         description="Session ID",
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Session ended successfully"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Session not found"
+     *     )
+     * )
+     */
+    public function endSession(int $sessionId): JsonResponse
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $loginService = new LoginService();
+
+        if ($loginService->endSession($user, $sessionId)) {
+            return response()->json(['status' => 'Session ended']);
+        }
+
+        return response()->json(
+            ['error' => 'Session not found'],
+            Response::HTTP_NOT_FOUND
+        );
+    }
 

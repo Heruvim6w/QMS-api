@@ -7,7 +7,7 @@ namespace App\Http\Requests\User;
 use App\Http\Requests\BaseJsonFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
 
-class LoginRequest extends BaseJsonFormRequest
+class ConfirmLoginRequest extends BaseJsonFormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -25,10 +25,7 @@ class LoginRequest extends BaseJsonFormRequest
     public function rules(): array
     {
         return [
-            // Можно авторизоваться по email или UIN (8-значное число)
-            'login' => 'required|string|min:3',
-            'password' => 'required|string|min:8|max:25',
-            'device_name' => 'sometimes|string|max:255', // Опциональное имя устройства
+            'token' => 'required|string|size:64',
         ];
     }
 
@@ -38,10 +35,9 @@ class LoginRequest extends BaseJsonFormRequest
     public function messages(): array
     {
         return [
-            'login.required' => 'Email or UIN is required',
-            'login.min' => 'Email or UIN must be at least 3 characters',
-            'password.required' => 'Password is required',
-            'password.min' => 'Password must be at least 8 characters',
+            'token.required' => 'Confirmation token is required',
+            'token.size' => 'Invalid token format',
         ];
     }
 }
+
