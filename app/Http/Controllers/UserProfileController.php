@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\User\SearchUserRequest;
+use App\Http\Requests\User\SetStatusRequest;
 use App\Http\Requests\User\SetUsernameRequest;
 use App\Models\User;
 use App\Services\LoginService;
+use App\Services\StatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use OpenApi\Annotations as OA;
@@ -290,5 +292,149 @@ class UserProfileController extends Controller
             ['error' => 'Session not found'],
             Response::HTTP_NOT_FOUND
         );
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/v1/users/status",
+     *     summary="Set user online status",
+     *     tags={"Users"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"online_status"},
+     *             @OA\Property(
+     *                 property="online_status",
+     *                 type="string",
+     *                 enum={"online", "chatty", "angry", "depressed", "home", "work", "eating", "away", "unavailable", "busy", "do_not_disturb"},
+     *                 example="chatty"
+     *             ),
+     *             @OA\Property(
+     *                 property="custom_status",
+     *                 type="string",
+     *                 description="Custom status text (max 50 characters, supports emoji)",
+     *                 example="На встрече 🎯",
+     *                 nullable=true
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Status updated successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="success"),
+     *             @OA\Property(property="online_status", type="string", example="chatty"),
+     *             @OA\Property(property="display_status", type="string", example="Готов поболтать - На встрече 🎯")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error"
+     *     )
+     * )
+     */
+    public function setStatus(SetStatusRequest $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $data = $request->validated();
+
+        $statusService = new StatusService();
+        $statusService->setStatus(
+            $user,
+            $data['online_status'],
+            $data['custom_status'] ?? null
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'online_status' => $user->online_status,
+            'display_status' => $user->getDisplayStatus(),
+        ]);
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/v1/users/status/available",
+     *     summary="Get available online statuses",
+     *     tags={"Users"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="List of available statuses",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(
+     *                 property="statuses",
+     *                 type="object",
+     *                 example={"online": "Онлайн", "chatty": "Готов поболтать", "angry": "Злой"}
+     *             )
+     *         )
+     *     )
+     * )
+     */
+    public function getAvailableStatuses(): JsonResponse
+    {
+        $statuses = StatusService::getAvailableStatuses();
+
+        return response()->json([
+            'statuses' => $statuses,
+        ]);
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/v1/users/{identifier}/status",
+     *     summary="Get user status (for friends/contacts list)",
+     *     tags={"Users"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="identifier",
+     *         in="path",
+     *         required=true,
+     *         description="User UIN (8 digits) or username",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="User status information",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="id", type="string", format="uuid"),
+     *             @OA\Property(property="name", type="string"),
+     *             @OA\Property(property="uin", type="string"),
+     *             @OA\Property(property="is_online", type="boolean"),
+     *             @OA\Property(property="status", type="string", example="Готов поболтать"),
+     *             @OA\Property(property="status_key", type="string", example="chatty"),
+     *             @OA\Property(property="last_seen", type="string", nullable=true, example="3 hours ago")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="User not found"
+     *     )
+     * )
+     */
+    public function getUserStatus(string $identifier): JsonResponse
+    {
+        $user = User::findByIdentifier($identifier);
+
+        if (!$user) {
+            return response()->json(
+                ['error' => 'User not found'],
+                Response::HTTP_NOT_FOUND
+            );
+        }
+
+        $statusService = new StatusService();
+        $status = $statusService->getStatusForFriend($user);
+
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'uin' => $user->uin,
+            ...$status,
+        ]);
     }
 }

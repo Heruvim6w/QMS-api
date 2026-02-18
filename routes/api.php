@@ -31,6 +31,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/sessions', [UserProfileController::class, 'getSessions']);
         Route::delete('/sessions/{sessionId}', [UserProfileController::class, 'endSession']);
 
+        // Status management routes
+        Route::post('/users/status', [UserProfileController::class, 'setStatus']);
+        Route::get('/users/status/available', [UserProfileController::class, 'getAvailableStatuses']);
+        Route::get('/users/{identifier}/status', [UserProfileController::class, 'getUserStatus']);
+
         // Chat routes
         Route::get('/chats', [ChatController::class, 'index']);
         Route::post('/chats', [ChatController::class, 'store']);
