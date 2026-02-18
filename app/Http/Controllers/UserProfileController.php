@@ -291,4 +291,4 @@ class UserProfileController extends Controller
             Response::HTTP_NOT_FOUND
         );
     }
-
+}
