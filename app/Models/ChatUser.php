@@ -28,6 +28,7 @@ class ChatUser extends Pivot
         'is_muted' => 'boolean',
         'is_active' => 'boolean',
         'joined_at' => 'datetime',
+        'user_id' => 'string',
     ];
 
     /**

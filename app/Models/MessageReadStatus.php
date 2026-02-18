@@ -24,6 +24,7 @@ class MessageReadStatus extends Model
     protected $casts = [
         'read_at' => 'datetime',
         'delivered_at' => 'datetime',
+        'user_id' => 'string',
     ];
 
     /**

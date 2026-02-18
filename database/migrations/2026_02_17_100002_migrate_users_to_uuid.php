@@ -27,7 +27,7 @@ return new class extends Migration
 
         // Копируем данные из старой таблицы в новую
         DB::statement('INSERT INTO users_new (id, name, email, email_verified_at, password, remember_token, public_key, private_key, created_at, updated_at)
-                       SELECT CAST(id AS CHAR), name, email, email_verified_at, password, remember_token, public_key, private_key, created_at, updated_at FROM users');
+                       SELECT id::text::uuid, name, email, email_verified_at, password, remember_token, public_key, private_key, created_at, updated_at FROM users');
 
         // Удаляем старую таблицу
         Schema::dropIfExists('users');

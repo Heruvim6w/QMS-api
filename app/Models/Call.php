@@ -16,10 +16,10 @@ use OpenApi\Annotations as OA;
  *     title="Call",
  *     description="Модель звонка (аудио/видео)",
  *     @OA\Property(property="id", type="integer", example=1),
- *     @OA\Property(property="call_uuid", type="string", example="550e8400-e29b-41d4-a716-446655440000"),
+ *     @OA\Property(property="call_uuid", type="string", format="uuid", example="550e8400-e29b-41d4-a716-446655440000"),
  *     @OA\Property(property="chat_id", type="integer", example=1),
- *     @OA\Property(property="caller_id", type="integer", example=1),
- *     @OA\Property(property="callee_id", type="integer", example=2),
+ *     @OA\Property(property="caller_id", type="string", format="uuid", example="550e8400-e29b-41d4-a716-446655440000"),
+ *     @OA\Property(property="callee_id", type="string", format="uuid", example="550e8400-e29b-41d4-a716-446655440001"),
  *     @OA\Property(property="type", type="string", enum={"audio", "video"}, example="video"),
  *     @OA\Property(property="status", type="string", enum={"pending", "ringing", "active", "ended", "missed", "declined", "failed"}, example="active"),
  *     @OA\Property(property="duration", type="integer", nullable=true, example=120),
@@ -64,6 +64,8 @@ class Call extends Model
         'answered_at' => 'datetime',
         'ended_at' => 'datetime',
         'duration' => 'integer',
+        'caller_id' => 'string',
+        'callee_id' => 'string',
     ];
 
     protected $hidden = [

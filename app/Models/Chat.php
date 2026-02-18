@@ -19,7 +19,7 @@ use OpenApi\Annotations as OA;
  *     @OA\Property(property="id", type="integer", example=1),
  *     @OA\Property(property="type", type="string", enum={"private", "group", "favorites"}, example="private"),
  *     @OA\Property(property="name", type="string", nullable=true, example="Рабочий чат"),
- *     @OA\Property(property="creator_id", type="integer", nullable=true, example=1),
+ *     @OA\Property(property="creator_id", type="string", format="uuid", nullable=true, example="550e8400-e29b-41d4-a716-446655440000"),
  *     @OA\Property(property="created_at", type="string", format="date-time"),
  *     @OA\Property(property="updated_at", type="string", format="date-time")
  * )
@@ -37,7 +37,7 @@ class Chat extends Model
     ];
 
     protected $casts = [
-        'creator_id' => 'integer',
+        'creator_id' => 'string',
     ];
 
     /**

@@ -15,7 +15,7 @@ use OpenApi\Annotations as OA;
  *     type="object",
  *     title="Message",
  *     description="Message model with end-to-end encryption",
- *     required={"sender_id", "receiver_id", "encrypted_content", "iv", "type"},
+ *     required={"sender_id", "chat_id", "encrypted_content", "iv", "type"},
  *     @OA\Property(
  *         property="id",
  *         type="integer",
@@ -32,10 +32,10 @@ use OpenApi\Annotations as OA;
  *     ),
  *     @OA\Property(
  *         property="sender_id",
- *         type="integer",
- *         format="int64",
- *         description="ID of the user who sent the message",
- *         example=1
+ *         type="string",
+ *         format="uuid",
+ *         description="UUID of the user who sent the message",
+ *         example="550e8400-e29b-41d4-a716-446655440000"
  *     ),
  *     @OA\Property(
  *         property="encrypted_content",
@@ -101,7 +101,7 @@ class Message extends Model
 
     protected $casts = [
         'chat_id' => 'integer',
-        'sender_id' => 'integer',
+        'sender_id' => 'string',
     ];
 
     /**

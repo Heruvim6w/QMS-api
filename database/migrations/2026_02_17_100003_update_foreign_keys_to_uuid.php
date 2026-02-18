@@ -1,95 +1,4 @@
 <?php
-//
-//use Illuminate\Database\Migrations\Migration;
-//use Illuminate\Database\Schema\Blueprint;
-//use Illuminate\Support\Facades\Schema;
-//
-//return new class extends Migration
-//{
-//    /**
-//     * Run the migrations.
-//     */
-//    public function up(): void
-//    {
-//        // Обновляем таблицу chat_users
-//        if (Schema::hasTable('chat_users')) {
-//            Schema::table('chat_users', function (Blueprint $table) {
-//                $table->dropForeign(['user_id']);
-//            });
-//
-//            Schema::table('chat_users', function (Blueprint $table) {
-//                // Изменяем тип колонки с bigInteger на uuid string
-//                $table->dropColumn('user_id');
-//            });
-//
-//            Schema::table('chat_users', function (Blueprint $table) {
-//                $table->uuid('user_id')->after('chat_id');
-//                $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
-//            });
-//        }
-//
-//        // Обновляем таблицу message_read_statuses
-//        if (Schema::hasTable('message_read_statuses')) {
-//            Schema::table('message_read_statuses', function (Blueprint $table) {
-//                $table->dropForeign(['user_id']);
-//            });
-//
-//            Schema::table('message_read_statuses', function (Blueprint $table) {
-//                $table->dropColumn('user_id');
-//            });
-//
-//            Schema::table('message_read_statuses', function (Blueprint $table) {
-//                $table->uuid('user_id')->after('message_id');
-//                $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
-//            });
-//        }
-//
-//        // Обновляем таблицу calls
-//        if (Schema::hasTable('calls')) {
-//            Schema::table('calls', function (Blueprint $table) {
-//                $table->dropForeign(['caller_id']);
-//                $table->dropForeign(['callee_id']);
-//            });
-//
-//            Schema::table('calls', function (Blueprint $table) {
-//                $table->dropColumn('caller_id');
-//                $table->dropColumn('callee_id');
-//            });
-//
-//            Schema::table('calls', function (Blueprint $table) {
-//                $table->uuid('caller_id')->after('chat_id');
-//                $table->uuid('callee_id')->after('caller_id');
-//                $table->foreign('caller_id')->references('id')->on('users')->cascadeOnDelete();
-//                $table->foreign('callee_id')->references('id')->on('users')->cascadeOnDelete();
-//            });
-//        }
-//
-//        // Обновляем таблицу messages
-//        if (Schema::hasTable('messages')) {
-//            Schema::table('messages', function (Blueprint $table) {
-//                $table->dropForeign(['sender_id']);
-//            });
-//
-//            Schema::table('messages', function (Blueprint $table) {
-//                $table->dropColumn('sender_id');
-//            });
-//
-//            Schema::table('messages', function (Blueprint $table) {
-//                $table->uuid('sender_id')->after('chat_id');
-//                $table->foreign('sender_id')->references('id')->on('users')->cascadeOnDelete();
-//            });
-//        }
-//    }
-//
-//    /**
-//     * Reverse the migrations.
-//     */
-//    public function down(): void
-//    {
-//        // Обратная миграция сложная, оставляем минимальный rollback
-//    }
-//};
-//
 
 
 use Illuminate\Database\Migrations\Migration;
@@ -104,10 +13,61 @@ return new class extends Migration {
     public function up(): void
     {
         // Создаем временные колонки и переносим данные
+        $this->migrateMessages();
+        $this->migrateChats();
         $this->migrateChatUsers();
         $this->migrateMessageReadStatuses();
         $this->migrateCalls();
-        $this->migrateMessages();
+    }
+
+    /**
+     * Migrate messages table
+     */
+    private function migrateMessages(): void
+    {
+        if (!Schema::hasTable('messages')) {
+            return;
+        }
+
+        Schema::table('messages', function (Blueprint $table) {
+            $table->uuid('sender_id_uuid')->nullable()->after('chat_id');
+        });
+
+        DB::statement('UPDATE messages SET sender_id_uuid = sender_id::uuid WHERE sender_id IS NOT NULL');
+
+        Schema::table('messages', function (Blueprint $table) {
+            $table->dropForeign(['sender_id']);
+            $table->dropColumn('sender_id');
+            $table->renameColumn('sender_id_uuid', 'sender_id');
+            $table->foreign('sender_id')->references('id')->on('users')->cascadeOnDelete();
+        });
+    }
+
+    /**
+     * Migrate chats table - creator_id to UUID
+     */
+    private function migrateChats(): void
+    {
+        if (!Schema::hasTable('chats')) {
+            return;
+        }
+
+        if (!Schema::hasColumn('chats', 'creator_id')) {
+            return;
+        }
+
+        Schema::table('chats', function (Blueprint $table) {
+            $table->uuid('creator_id_uuid')->nullable()->after('type');
+        });
+
+        DB::statement('UPDATE chats SET creator_id_uuid = creator_id::uuid WHERE creator_id IS NOT NULL');
+
+        Schema::table('chats', function (Blueprint $table) {
+            $table->dropForeign(['creator_id']);
+            $table->dropColumn('creator_id');
+            $table->renameColumn('creator_id_uuid', 'creator_id');
+            $table->foreign('creator_id')->references('id')->on('users')->nullableOnDelete();
+        });
     }
 
     /**
@@ -191,28 +151,6 @@ return new class extends Migration {
         });
     }
 
-    /**
-     * Migrate messages table
-     */
-    private function migrateMessages(): void
-    {
-        if (!Schema::hasTable('messages')) {
-            return;
-        }
-
-        Schema::table('messages', function (Blueprint $table) {
-            $table->uuid('sender_id_uuid')->nullable()->after('chat_id');
-        });
-
-        DB::statement('UPDATE messages SET sender_id_uuid = sender_id::uuid WHERE sender_id IS NOT NULL');
-
-        Schema::table('messages', function (Blueprint $table) {
-            $table->dropForeign(['sender_id']);
-            $table->dropColumn('sender_id');
-            $table->renameColumn('sender_id_uuid', 'sender_id');
-            $table->foreign('sender_id')->references('id')->on('users')->cascadeOnDelete();
-        });
-    }
 
     /**
      * Reverse the migrations.
@@ -224,6 +162,7 @@ return new class extends Migration {
         $this->rollbackMessageReadStatuses();
         $this->rollbackCalls();
         $this->rollbackMessages();
+        $this->rollbackChats();
     }
 
     private function rollbackChatUsers(): void
@@ -312,6 +251,31 @@ return new class extends Migration {
             $table->dropColumn('sender_id');
             $table->renameColumn('sender_id_bigint', 'sender_id');
             $table->foreign('sender_id')->references('id')->on('users');
+        });
+    }
+
+    private function rollbackChats(): void
+    {
+        if (!Schema::hasTable('chats')) {
+            return;
+        }
+
+        // Проверяем есть ли creator_id
+        if (!Schema::hasColumn('chats', 'creator_id')) {
+            return;
+        }
+
+        Schema::table('chats', function (Blueprint $table) {
+            $table->bigInteger('creator_id_bigint')->nullable()->after('type');
+        });
+
+        DB::statement('UPDATE chats SET creator_id_bigint = (creator_id::text)::bigint WHERE creator_id IS NOT NULL');
+
+        Schema::table('chats', function (Blueprint $table) {
+            $table->dropForeign(['creator_id']);
+            $table->dropColumn('creator_id');
+            $table->renameColumn('creator_id_bigint', 'creator_id');
+            $table->foreign('creator_id')->references('id')->on('users')->nullable();
         });
     }
 };
