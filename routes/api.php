@@ -4,6 +4,7 @@ use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\WebRTCController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +18,12 @@ Route::prefix('v1')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/refresh', [AuthController::class, 'refresh']);
         Route::get('/me', [AuthController::class, 'me']);
+
+        // User profile routes
+        Route::get('/users/profile', [UserProfileController::class, 'getProfile']);
+        Route::post('/users/username', [UserProfileController::class, 'setUsername']);
+        Route::get('/users/search', [UserProfileController::class, 'searchUser']);
+        Route::get('/users/{identifier}', [UserProfileController::class, 'getUserByIdentifier']);
 
         // Chat routes
         Route::get('/chats', [ChatController::class, 'index']);

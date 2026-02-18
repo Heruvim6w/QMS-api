@@ -41,6 +41,19 @@ use Illuminate\Support\Str;
  *         example="john@example.com"
  *     ),
  *     @OA\Property(
+ *         property="uin",
+ *         type="string",
+ *         description="User's UIN (8-digit unique identifier like in ICQ)",
+ *         example="12345678"
+ *     ),
+ *     @OA\Property(
+ *         property="username",
+ *         type="string",
+ *         description="User's unique username (latin letters, digits, underscore, dash)",
+ *         example="john_doe",
+ *         nullable=true
+ *     ),
+ *     @OA\Property(
  *         property="public_key",
  *         type="string",
  *         description="User's public encryption key",
@@ -59,18 +72,6 @@ use Illuminate\Support\Str;
  *         format="date-time",
  *         description="User last update timestamp",
  *         example="2023-01-01T12:00:00Z"
- *     ),
- *     @OA\Property(
- *         property="sent_messages",
- *         type="array",
- *         description="Messages sent by the user",
- *         @OA\Items(ref="#/components/schemas/Message")
- *     ),
- *     @OA\Property(
- *         property="received_messages",
- *         type="array",
- *         description="Messages received by the user",
- *         @OA\Items(ref="#/components/schemas/Message")
  *     )
  * )
  */
@@ -94,6 +95,8 @@ class User extends Authenticatable implements JWTSubject
         'password',
         'public_key',
         'private_key',
+        'uin',
+        'username',
     ];
 
     protected $hidden = [
@@ -119,7 +122,49 @@ class User extends Authenticatable implements JWTSubject
             if (empty($user->{$user->getKeyName()})) {
                 $user->{$user->getKeyName()} = Str::uuid()->toString();
             }
+
+            // Генерируем UIN если его нет
+            if (empty($user->uin)) {
+                $user->uin = self::generateUIN();
+            }
         });
+    }
+
+    /**
+     * Генерировать уникальный UIN (как в ICQ)
+     * Формат: 8-значное число
+     */
+    public static function generateUIN(): string
+    {
+        do {
+            $uin = str_pad((string)random_int(10000000, 99999999), 8, '0', STR_PAD_LEFT);
+        } while (self::where('uin', $uin)->exists());
+
+        return $uin;
+    }
+
+    /**
+     * Найти пользователя по UIN или username
+     * @param string $identifier - либо UIN (8 цифр), либо username
+     */
+    public static function findByIdentifier(string $identifier): ?self
+    {
+        // Если выглядит как UIN (8-значное число)
+        if (preg_match('/^\d{8}$/', $identifier)) {
+            return self::where('uin', $identifier)->first();
+        }
+
+        // Иначе ищем по username
+        return self::where('username', $identifier)->first();
+    }
+
+    /**
+     * Проверить валидность username
+     * Только латиница, цифры, подчеркивание, дефис, минимум 3 символа
+     */
+    public static function isValidUsername(string $username): bool
+    {
+        return preg_match('/^[a-zA-Z0-9_-]{3,20}$/', $username) === 1;
     }
 
     /**

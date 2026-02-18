@@ -45,6 +45,8 @@ class UserFactory extends Factory
             'remember_token' => Str::random(10),
             'public_key' => $publicKey,
             'private_key' => $privateKey,
+            'uin' => str_pad((string)fake()->unique()->numberBetween(10000000, 99999999), 8, '0', STR_PAD_LEFT),
+            'username' => null, // По умолчанию username пустой
         ];
     }
 
