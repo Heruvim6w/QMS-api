@@ -7,7 +7,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\User\SearchUserRequest;
 use App\Http\Requests\User\SetStatusRequest;
 use App\Http\Requests\User\SetUsernameRequest;
+use App\Http\Requests\UpdateUserLocaleRequest;
 use App\Models\User;
+use App\Services\LocalizationService;
 use App\Services\LoginService;
 use App\Services\StatusService;
 use Illuminate\Http\JsonResponse;
@@ -437,4 +439,84 @@ class UserProfileController extends Controller
             ...$status,
         ]);
     }
+
+    /**
+     * @OA\Get(
+     *     path="/api/v1/languages",
+     *     summary="Get list of supported languages",
+     *     tags={"Users"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="List of supported languages",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="supported_locales", type="array", items={"type": "string"}, example={"en", "ru", "de"}),
+     *             @OA\Property(property="current_locale", type="string", example="en"),
+     *             @OA\Property(property="language_names", type="object", example={"en": "English", "ru": "Русский", "de": "Deutsch"}),
+     *             @OA\Property(property="status_names", type="object", example={"online": "Online", "chatty": "Chatty", "angry": "Angry"})
+     *         )
+     *     )
+     * )
+     */
+    public function getLanguages(): JsonResponse
+    {
+        $localizationService = new LocalizationService();
+
+        return response()->json([
+            'supported_locales' => $localizationService->getSupportedLocales(),
+            'current_locale' => $localizationService->getCurrentLocale(),
+            'language_names' => $localizationService->getLanguageNames(),
+            'status_names' => $localizationService->getStatusNames(),
+        ]);
+    }
+
+    /**
+     * @OA\Put(
+     *     path="/api/v1/users/locale",
+     *     summary="Update user preferred language",
+     *     tags={"Users"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"locale"},
+     *             @OA\Property(property="locale", type="string", enum={"en", "ru", "de"}, example="ru")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Language updated successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="success"),
+     *             @OA\Property(property="locale", type="string", example="ru"),
+     *             @OA\Property(property="language_name", type="string", example="Русский")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string"),
+     *             @OA\Property(property="errors", type="object")
+     *         )
+     *     )
+     * )
+     */
+    public function updateLocale(UpdateUserLocaleRequest $request): JsonResponse
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $data = $request->validated();
+
+        $localizationService = new LocalizationService();
+        $localizationService->updateUserLocale($user, $data['locale']);
+
+        return response()->json([
+            'status' => 'success',
+            'locale' => $user->locale,
+            'language_name' => __("languages.{$user->locale}"),
+        ]);
+    }
 }
+

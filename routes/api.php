@@ -27,6 +27,10 @@ Route::prefix('v1')->group(function () {
         Route::get('/users/search', [UserProfileController::class, 'searchUser']);
         Route::get('/users/{identifier}', [UserProfileController::class, 'getUserByIdentifier']);
 
+        // Language management routes
+        Route::get('/languages', [UserProfileController::class, 'getLanguages']);
+        Route::put('/users/locale', [UserProfileController::class, 'updateLocale']);
+
         // Session management routes
         Route::get('/sessions', [UserProfileController::class, 'getSessions']);
         Route::delete('/sessions/{sessionId}', [UserProfileController::class, 'endSession']);

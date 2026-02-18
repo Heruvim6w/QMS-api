@@ -172,6 +172,7 @@ class User extends Authenticatable implements JWTSubject
         'online_status',
         'custom_status',
         'last_seen_at',
+        'locale',
     ];
 
     protected $hidden = [
