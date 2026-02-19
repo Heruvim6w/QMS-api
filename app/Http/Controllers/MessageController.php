@@ -22,7 +22,7 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 /**
  * @OA\Tag(
  *     name="Messages",
- *     description="API Endpoints for Messages"
+ *     description="Encrypted message handling with end-to-end encryption support, file attachments, and delivery tracking"
  * )
  */
 class MessageController extends Controller
@@ -35,16 +35,20 @@ class MessageController extends Controller
     /**
      * @OA\Post(
      *     path="/api/v1/messages",
+     *     operationId="sendMessage",
      *     summary="Send an encrypted message",
+     *     description="Send a message to a chat. Message is end-to-end encrypted. Either existing chat_id or new receiver_id should be provided. If receiver_id is provided, private chat is created automatically.",
      *     tags={"Messages"},
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
+     *         description="Message data",
      *         @OA\JsonContent(
-     *             @OA\Property(property="chat_id", type="integer", example=1, description="ID чата (если уже есть)"),
-     *             @OA\Property(property="receiver_id", type="integer", example=2, description="ID получателя (если новый чат)"),
-     *             @OA\Property(property="content", type="string", example="Hello, how are you?"),
-     *             @OA\Property(property="type", type="string", enum={"text", "image", "voice", "video", "file"}, example="text")
+     *             required={"content"},
+     *             @OA\Property(property="chat_id", type="integer", nullable=true, example=1, description="ID of existing chat (if empty, receiver_id must be provided)"),
+     *             @OA\Property(property="receiver_id", type="string", format="uuid", nullable=true, example="550e8400-e29b-41d4-a716-446655440001", description="UUID of receiver (for new private chats, if empty chat_id must be provided)"),
+     *             @OA\Property(property="content", type="string", maxLength=65535, example="Hello, how are you?", description="Message text (encrypted before sending)"),
+     *             @OA\Property(property="type", type="string", enum={"text", "image", "voice", "video", "file"}, example="text", description="Message type (default: text)")
      *         )
      *     ),
      *     @OA\Response(
@@ -57,10 +61,20 @@ class MessageController extends Controller
      *             @OA\Property(property="created_at", type="string", format="date-time")
      *         )
      *     ),
-     *     @OA\Response(response=403, description="Access denied"),
-     *     @OA\Response(response=404, description="Chat or receiver not found"),
-     *     @OA\Response(response=422, description="Validation error")
+     *     @OA\Response(
+     *         response=403,
+     *         description="Access denied - not a member of this chat"
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Chat or receiver not found"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error"
+     *     )
      * )
+     * @throws \Throwable
      */
     public function sendMessage(SendRequest $request): JsonResponse
     {
@@ -111,7 +125,9 @@ class MessageController extends Controller
     /**
      * @OA\Get(
      *     path="/api/v1/messages/{id}",
+     *     operationId="getMessage",
      *     summary="Get a specific message",
+     *     description="Retrieve and decrypt a specific message by ID. Message is automatically marked as read. Only accessible to chat members.",
      *     tags={"Messages"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -119,33 +135,24 @@ class MessageController extends Controller
      *         in="path",
      *         required=true,
      *         description="Message ID",
-     *         @OA\Schema(type="integer")
+     *         @OA\Schema(type="integer", example=1)
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Message details",
-     *         @OA\JsonContent(ref="#/components/schemas/Message")
+     *         description="Message details (decrypted)",
+     *         @OA\JsonContent(ref="#/components/schemas/MessageResponse_v2")
      *     ),
      *     @OA\Response(
      *         response=403,
-     *         description="Access denied",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="error", type="string", example="Access denied")
-     *         )
+     *         description="Access denied - user not a member of this chat"
      *     ),
      *     @OA\Response(
      *         response=404,
-     *         description="Message not found",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="error", type="string", example="Message not found")
-     *         )
+     *         description="Message not found"
      *     ),
      *     @OA\Response(
      *         response=500,
-     *         description="Decryption error",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="error", type="string", example="Failed to decrypt message")
-     *         )
+     *         description="Decryption error"
      *     )
      * )
      */
@@ -202,7 +209,9 @@ class MessageController extends Controller
     /**
      * @OA\Get(
      *     path="/api/v1/messages",
-     *     summary="Get messages in a chat",
+     *     operationId="getMessages",
+     *     summary="Get all messages in a chat",
+     *     description="Retrieve all messages from a specific chat with pagination. Messages are automatically decrypted. Only accessible to chat members. Messages are sorted by creation date (oldest first).",
      *     tags={"Messages"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -210,29 +219,35 @@ class MessageController extends Controller
      *         in="query",
      *         required=true,
      *         description="ID of the chat",
-     *         @OA\Schema(type="integer")
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Parameter(
+     *         name="limit",
+     *         in="query",
+     *         description="Maximum number of messages to return (default: 50)",
+     *         @OA\Schema(type="integer", example=50)
+     *     ),
+     *     @OA\Parameter(
+     *         name="offset",
+     *         in="query",
+     *         description="Number of messages to skip (for pagination)",
+     *         @OA\Schema(type="integer", example=0)
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="List of messages in chat",
+     *         description="List of messages in chat (decrypted)",
      *         @OA\JsonContent(
      *             type="array",
-     *             @OA\Items(ref="#/components/schemas/Message")
+     *             @OA\Items(ref="#/components/schemas/MessageResponse")
      *         )
      *     ),
      *     @OA\Response(
      *         response=400,
-     *         description="Missing chat_id parameter",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="error", type="string", example="chat_id parameter is required")
-     *         )
+     *         description="Missing chat_id parameter"
      *     ),
      *     @OA\Response(
      *         response=403,
-     *         description="Access denied to this chat",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="error", type="string", example="Access denied")
-     *         )
+     *         description="Access denied - user not a member of this chat"
      *     )
      * )
      */
@@ -298,7 +313,9 @@ class MessageController extends Controller
     /**
      * @OA\Post(
      *     path="/api/v1/messages/{id}/upload",
-     *     summary="Upload a file for a message",
+     *     operationId="uploadFileToMessage",
+     *     summary="Upload a file attachment to a message",
+     *     description="Attach a file to a message. File is stored encrypted on server. Only message author can add attachments. Supports any file type within size limits.",
      *     tags={"Messages"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -306,10 +323,11 @@ class MessageController extends Controller
      *         in="path",
      *         required=true,
      *         description="Message ID",
-     *         @OA\Schema(type="integer")
+     *         @OA\Schema(type="integer", example=1)
      *     ),
      *     @OA\RequestBody(
      *         required=true,
+     *         description="File to upload",
      *         @OA\MediaType(
      *             mediaType="multipart/form-data",
      *             @OA\Schema(
@@ -318,33 +336,37 @@ class MessageController extends Controller
      *                     property="file",
      *                     type="string",
      *                     format="binary",
-     *                     description="File to upload"
+     *                     description="Binary file content (max 100MB recommended)"
      *                 )
      *             )
      *         )
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="File uploaded successfully",
+     *         description="File uploaded and attached successfully",
      *         @OA\JsonContent(
      *             @OA\Property(property="status", type="string", example="file_uploaded"),
      *             @OA\Property(property="attachment_id", type="integer", example=1),
-     *             @OA\Property(property="file_path", type="string", example="uploads/file.jpg")
+     *             @OA\Property(property="file_path", type="string", example="uploads/messages/file.jpg"),
+     *             @OA\Property(property="file_size", type="integer", example=102400),
+     *             @OA\Property(property="mime_type", type="string", example="image/jpeg")
      *         )
      *     ),
      *     @OA\Response(
      *         response=403,
-     *         description="Access denied",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="error", type="string", example="Access denied")
-     *         )
+     *         description="Access denied - not the message author"
      *     ),
      *     @OA\Response(
      *         response=404,
-     *         description="Message not found",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="error", type="string", example="Message not found")
-     *         )
+     *         description="Message not found"
+     *     ),
+     *     @OA\Response(
+     *         response=413,
+     *         description="File too large"
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error (invalid file type, etc)"
      *     )
      * )
      */
@@ -379,4 +401,5 @@ class MessageController extends Controller
             'attachment_id' => $attachment->id,
             'file_path' => $path
         ]);
-    }}
+    }
+}

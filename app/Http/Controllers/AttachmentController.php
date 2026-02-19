@@ -20,7 +20,7 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 /**
  * @OA\Tag(
  *     name="Attachments",
- *     description="API Endpoints for Message Attachments"
+ *     description="File attachment management including upload, download, and deletion for encrypted messages"
  * )
  */
 class AttachmentController extends Controller
@@ -28,7 +28,9 @@ class AttachmentController extends Controller
     /**
      * @OA\Get(
      *     path="/api/v1/attachments/{id}",
+     *     operationId="getAttachment",
      *     summary="Get attachment details",
+     *     description="Retrieve metadata about a file attachment including file size, MIME type, and original filename. Only accessible to members of the chat containing the message.",
      *     tags={"Attachments"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -36,19 +38,16 @@ class AttachmentController extends Controller
      *         in="path",
      *         required=true,
      *         description="Attachment ID",
-     *         @OA\Schema(type="integer")
+     *         @OA\Schema(type="integer", example=1)
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Attachment details",
-     *         @OA\JsonContent(ref="#/components/schemas/Attachment")
+     *         description="Attachment metadata",
+     *         @OA\JsonContent(ref="#/components/schemas/AttachmentResponse")
      *     ),
      *     @OA\Response(
      *         response=403,
-     *         description="Access denied",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="error", type="string", example="Access denied")
-     *         )
+     *         description="Access denied - not a member of the chat"
      *     ),
      *     @OA\Response(
      *         response=404,
@@ -78,7 +77,9 @@ class AttachmentController extends Controller
     /**
      * @OA\Get(
      *     path="/api/v1/attachments/{id}/download",
+     *     operationId="downloadAttachment",
      *     summary="Download an attachment file",
+     *     description="Download the actual file content of an attachment. File is streamed directly from storage. Content-Type is set based on MIME type.",
      *     tags={"Attachments"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -86,7 +87,7 @@ class AttachmentController extends Controller
      *         in="path",
      *         required=true,
      *         description="Attachment ID",
-     *         @OA\Schema(type="integer")
+     *         @OA\Schema(type="integer", example=1)
      *     ),
      *     @OA\Response(
      *         response=200,
@@ -95,11 +96,11 @@ class AttachmentController extends Controller
      *     ),
      *     @OA\Response(
      *         response=403,
-     *         description="Access denied"
+     *         description="Access denied - not a member of the chat"
      *     ),
      *     @OA\Response(
      *         response=404,
-     *         description="Attachment or file not found"
+     *         description="Attachment or file not found on server"
      *     )
      * )
      */
@@ -136,7 +137,9 @@ class AttachmentController extends Controller
     /**
      * @OA\Delete(
      *     path="/api/v1/attachments/{id}",
+     *     operationId="deleteAttachment",
      *     summary="Delete an attachment",
+     *     description="Delete a file attachment from a message. Only the message author can delete attachments. File is removed from storage. Message itself remains.",
      *     tags={"Attachments"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -144,7 +147,7 @@ class AttachmentController extends Controller
      *         in="path",
      *         required=true,
      *         description="Attachment ID",
-     *         @OA\Schema(type="integer")
+     *         @OA\Schema(type="integer", example=1)
      *     ),
      *     @OA\Response(
      *         response=200,
@@ -155,10 +158,7 @@ class AttachmentController extends Controller
      *     ),
      *     @OA\Response(
      *         response=403,
-     *         description="Access denied - only message author can delete attachments",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="error", type="string", example="Только автор сообщения может удалять вложения")
-     *         )
+     *         description="Access denied - only message author can delete attachments"
      *     ),
      *     @OA\Response(
      *         response=404,

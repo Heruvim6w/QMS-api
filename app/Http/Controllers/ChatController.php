@@ -16,6 +16,12 @@ use Illuminate\Support\Facades\Auth;
 use OpenApi\Annotations as OA;
 use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * @OA\Tag(
+ *     name="Chats",
+ *     description="Chat management endpoints for creating, updating, and managing private chats, group chats, and favorites"
+ * )
+ */
 class ChatController extends Controller
 {
     protected ChatService $chatService;
@@ -28,20 +34,28 @@ class ChatController extends Controller
     /**
      * @OA\Get(
      *     path="/api/v1/chats",
+     *     operationId="listChats",
      *     summary="Get all chats for the authenticated user",
+     *     description="Retrieve a list of all chats the user participates in, including private chats, group chats, and favorites. Each chat includes participants, last message, and unread count.",
      *     tags={"Chats"},
      *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="type",
+     *         in="query",
+     *         description="Filter by chat type (private, group, favorites)",
+     *         @OA\Schema(type="string", enum={"private", "group", "favorites"})
+     *     ),
      *     @OA\Response(
      *         response=200,
      *         description="List of chats",
      *         @OA\JsonContent(
      *             type="array",
-     *             @OA\Items(ref="#/components/schemas/Chat")
+     *             @OA\Items(ref="#/components/schemas/ChatResponse")
      *         )
      *     ),
      *     @OA\Response(
      *         response=401,
-     *         description="Unauthorized"
+     *         description="Unauthenticated"
      *     )
      * )
      */
@@ -58,25 +72,31 @@ class ChatController extends Controller
     /**
      * @OA\Post(
      *     path="/api/v1/chats",
+     *     operationId="createChat",
      *     summary="Create a new group chat",
+     *     description="Create a new group chat with specified name and initial participants. Creator automatically becomes chat member. Only group chats can be explicitly created; private chats are created when first message is sent.",
      *     tags={"Chats"},
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
+     *         description="Group chat details",
      *         @OA\JsonContent(
-     *             @OA\Property(property="name", type="string", example="Project Discussion"),
+     *             required={"name", "user_ids"},
+     *             @OA\Property(property="name", type="string", minLength=1, maxLength=255, example="Project Discussion", description="Name for the group chat"),
      *             @OA\Property(
      *                 property="user_ids",
      *                 type="array",
-     *                 @OA\Items(type="integer"),
-     *                 example={2, 3, 4}
+     *                 @OA\Items(type="string", format="uuid"),
+     *                 minItems=1,
+     *                 example={"550e8400-e29b-41d4-a716-446655440001", "550e8400-e29b-41d4-a716-446655440002"},
+     *                 description="List of user UUIDs to add to the chat (creator is added automatically)"
      *             )
      *         )
      *     ),
      *     @OA\Response(
      *         response=201,
      *         description="Group chat created successfully",
-     *         @OA\JsonContent(ref="#/components/schemas/Chat")
+     *         @OA\JsonContent(ref="#/components/schemas/ChatResponse")
      *     ),
      *     @OA\Response(
      *         response=422,
@@ -96,7 +116,9 @@ class ChatController extends Controller
     /**
      * @OA\Get(
      *     path="/api/v1/chats/{id}",
-     *     summary="Get a specific chat",
+     *     operationId="getChat",
+     *     summary="Get detailed chat information",
+     *     description="Retrieve complete details of a specific chat including all participants, messages count, and settings. Only accessible to chat members.",
      *     tags={"Chats"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -104,16 +126,16 @@ class ChatController extends Controller
      *         in="path",
      *         required=true,
      *         description="Chat ID",
-     *         @OA\Schema(type="integer")
+     *         @OA\Schema(type="integer", example=1)
      *     ),
      *     @OA\Response(
      *         response=200,
      *         description="Chat details",
-     *         @OA\JsonContent(ref="#/components/schemas/Chat")
+     *         @OA\JsonContent(ref="#/components/schemas/ChatResponse")
      *     ),
      *     @OA\Response(
      *         response=403,
-     *         description="Access denied"
+     *         description="Access denied - user is not a member of this chat"
      *     ),
      *     @OA\Response(
      *         response=404,
@@ -134,7 +156,9 @@ class ChatController extends Controller
     /**
      * @OA\Put(
      *     path="/api/v1/chats/{id}",
+     *     operationId="updateChat",
      *     summary="Update a group chat name",
+     *     description="Change the name of a group chat. Only the chat creator or admins can update the chat name. Private chats cannot be renamed.",
      *     tags={"Chats"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -142,12 +166,14 @@ class ChatController extends Controller
      *         in="path",
      *         required=true,
      *         description="Chat ID",
-     *         @OA\Schema(type="integer")
+     *         @OA\Schema(type="integer", example=1)
      *     ),
      *     @OA\RequestBody(
      *         required=true,
+     *         description="New chat name",
      *         @OA\JsonContent(
-     *             @OA\Property(property="name", type="string", example="New Chat Name")
+     *             required={"name"},
+     *             @OA\Property(property="name", type="string", minLength=1, maxLength=255, example="New Chat Name", description="New name for the group chat")
      *         )
      *     ),
      *     @OA\Response(
@@ -159,7 +185,7 @@ class ChatController extends Controller
      *     ),
      *     @OA\Response(
      *         response=403,
-     *         description="Access denied or invalid chat type"
+     *         description="Access denied - only creator can update or invalid chat type"
      *     ),
      *     @OA\Response(
      *         response=404,
@@ -190,7 +216,9 @@ class ChatController extends Controller
     /**
      * @OA\Delete(
      *     path="/api/v1/chats/{id}",
+     *     operationId="leaveChat",
      *     summary="Leave a chat",
+     *     description="Remove the current user from a chat. Once left, user will no longer receive messages from this chat. Cannot leave private chats with only 2 members (delete instead). Other participants remain in the chat.",
      *     tags={"Chats"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -198,7 +226,7 @@ class ChatController extends Controller
      *         in="path",
      *         required=true,
      *         description="Chat ID",
-     *         @OA\Schema(type="integer")
+     *         @OA\Schema(type="integer", example=1)
      *     ),
      *     @OA\Response(
      *         response=200,
@@ -209,7 +237,7 @@ class ChatController extends Controller
      *     ),
      *     @OA\Response(
      *         response=403,
-     *         description="Cannot leave this chat type"
+     *         description="Cannot leave this chat type (e.g., only 2 members in private chat)"
      *     ),
      *     @OA\Response(
      *         response=404,
@@ -239,7 +267,9 @@ class ChatController extends Controller
     /**
      * @OA\Post(
      *     path="/api/v1/chats/{id}/add-user",
+     *     operationId="addUserToChat",
      *     summary="Add a user to a group chat",
+     *     description="Add a new member to an existing group chat. Only chat creator or admins can add users. Cannot add user to private chats.",
      *     tags={"Chats"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -247,12 +277,14 @@ class ChatController extends Controller
      *         in="path",
      *         required=true,
      *         description="Chat ID",
-     *         @OA\Schema(type="integer")
+     *         @OA\Schema(type="integer", example=1)
      *     ),
      *     @OA\RequestBody(
      *         required=true,
+     *         description="User to add",
      *         @OA\JsonContent(
-     *             @OA\Property(property="user_id", type="integer", example=5)
+     *             required={"user_id"},
+     *             @OA\Property(property="user_id", type="string", format="uuid", example="550e8400-e29b-41d4-a716-446655440001", description="UUID of user to add")
      *         )
      *     ),
      *     @OA\Response(
@@ -264,7 +296,7 @@ class ChatController extends Controller
      *     ),
      *     @OA\Response(
      *         response=403,
-     *         description="Cannot add user to this chat type"
+     *         description="Cannot add user to this chat type (e.g., private chat)"
      *     ),
      *     @OA\Response(
      *         response=404,
@@ -300,7 +332,9 @@ class ChatController extends Controller
     /**
      * @OA\Post(
      *     path="/api/v1/chats/{id}/remove-user/{userId}",
+     *     operationId="removeUserFromChat",
      *     summary="Remove a user from a group chat",
+     *     description="Remove a member from a group chat. Only chat creator can remove users. User can be notified about removal. Cannot remove from private chats.",
      *     tags={"Chats"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -308,14 +342,14 @@ class ChatController extends Controller
      *         in="path",
      *         required=true,
      *         description="Chat ID",
-     *         @OA\Schema(type="integer")
+     *         @OA\Schema(type="integer", example=1)
      *     ),
      *     @OA\Parameter(
      *         name="userId",
      *         in="path",
      *         required=true,
-     *         description="User ID to remove",
-     *         @OA\Schema(type="integer")
+     *         description="User ID (UUID) to remove",
+     *         @OA\Schema(type="string", format="uuid", example="550e8400-e29b-41d4-a716-446655440001")
      *     ),
      *     @OA\Response(
      *         response=200,
@@ -326,11 +360,11 @@ class ChatController extends Controller
      *     ),
      *     @OA\Response(
      *         response=403,
-     *         description="Cannot remove user from this chat type"
+     *         description="Cannot remove user from this chat type (e.g., private chat)"
      *     ),
      *     @OA\Response(
      *         response=404,
-     *         description="Chat not found"
+     *         description="Chat or user not found"
      *     )
      * )
      */
@@ -357,7 +391,9 @@ class ChatController extends Controller
     /**
      * @OA\Post(
      *     path="/api/v1/chats/{id}/mute",
-     *     summary="Mute or unmute a chat for the current user",
+     *     operationId="toggleMuteChat",
+     *     summary="Mute or unmute a chat",
+     *     description="Enable or disable notifications for a specific chat. When muted, new messages don't trigger notifications for the current user. Chat remains visible in chat list.",
      *     tags={"Chats"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -365,12 +401,14 @@ class ChatController extends Controller
      *         in="path",
      *         required=true,
      *         description="Chat ID",
-     *         @OA\Schema(type="integer")
+     *         @OA\Schema(type="integer", example=1)
      *     ),
      *     @OA\RequestBody(
      *         required=true,
+     *         description="Mute setting",
      *         @OA\JsonContent(
-     *             @OA\Property(property="is_muted", type="boolean", example=true)
+     *             required={"is_muted"},
+     *             @OA\Property(property="is_muted", type="boolean", example=true, description="true to mute, false to unmute")
      *         )
      *     ),
      *     @OA\Response(

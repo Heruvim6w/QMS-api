@@ -17,17 +17,216 @@
         {
             "url": "http://localhost:8000",
             "description": "QMS API Server"
+        },
+        {
+            "url": "http://localhost:8000",
+            "description": "Development Server",
+            "variables": {
+                "protocol": {
+                    "enum": [
+                        "http",
+                        "https"
+                    ],
+                    "default": "http"
+                }
+            }
         }
     ],
     "paths": {
+        "/api/v1": {
+            "description": "QMS Messenger API v1 root"
+        },
+        "/api/v1/attachments/{id}": {
+            "get": {
+                "tags": [
+                    "Attachments"
+                ],
+                "summary": "Get attachment details",
+                "description": "Retrieve metadata about a file attachment including file size, MIME type, and original filename. Only accessible to members of the chat containing the message.",
+                "operationId": "getAttachment",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Attachment ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attachment metadata",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AttachmentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied - not a member of the chat"
+                    },
+                    "404": {
+                        "description": "Attachment not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Attachments"
+                ],
+                "summary": "Delete an attachment",
+                "description": "Delete a file attachment from a message. Only the message author can delete attachments. File is removed from storage. Message itself remains.",
+                "operationId": "deleteAttachment",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Attachment ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Attachment deleted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "deleted"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied - only message author can delete attachments"
+                    },
+                    "404": {
+                        "description": "Attachment not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/attachments/{id}/download": {
+            "get": {
+                "tags": [
+                    "Attachments"
+                ],
+                "summary": "Download an attachment file",
+                "description": "Download the actual file content of an attachment. File is streamed directly from storage. Content-Type is set based on MIME type.",
+                "operationId": "downloadAttachment",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Attachment ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File download stream",
+                        "content": {
+                            "application/octet-stream": {}
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied - not a member of the chat"
+                    },
+                    "404": {
+                        "description": "Attachment or file not found on server"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/messages/{messageId}/attachments": {
+            "get": {
+                "tags": [
+                    "Attachments"
+                ],
+                "summary": "Get all attachments for a message",
+                "operationId": "a3dbafce9d8574173c3f20f4037578b8",
+                "parameters": [
+                    {
+                        "name": "messageId",
+                        "in": "path",
+                        "description": "Message ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of attachments for the message",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Attachment"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied"
+                    },
+                    "404": {
+                        "description": "Message not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
         "/api/v1/register": {
             "post": {
                 "tags": [
                     "Authentication"
                 ],
-                "summary": "Register a new user",
-                "operationId": "6796c44e1f6079c411abbfed066c5907",
+                "summary": "Register a new user account",
+                "description": "Create a new user account with email and password. User automatically receives a unique UIN (8-digit identifier) and can optionally set a custom username later. RSA key pair is generated for end-to-end encryption.",
+                "operationId": "register",
                 "requestBody": {
+                    "description": "User registration data",
                     "required": true,
                     "content": {
                         "application/json": {
@@ -40,23 +239,30 @@
                                 ],
                                 "properties": {
                                     "name": {
+                                        "description": "User full name",
                                         "type": "string",
+                                        "maxLength": 255,
+                                        "minLength": 2,
                                         "example": "John Doe"
                                     },
                                     "email": {
+                                        "description": "Valid email address (must be unique)",
                                         "type": "string",
                                         "format": "email",
                                         "example": "john@example.com"
                                     },
                                     "password": {
+                                        "description": "Password (min 8 chars, must include uppercase, lowercase, digit)",
                                         "type": "string",
                                         "format": "password",
-                                        "example": "password"
+                                        "minLength": 8,
+                                        "example": "SecurePass123!"
                                     },
                                     "password_confirmation": {
+                                        "description": "Password confirmation (must match password)",
                                         "type": "string",
                                         "format": "password",
-                                        "example": "password"
+                                        "example": "SecurePass123!"
                                     }
                                 },
                                 "type": "object"
@@ -66,25 +272,100 @@
                 },
                 "responses": {
                     "201": {
-                        "description": "User registered successfully",
+                        "description": "User registered successfully. JWT token issued for immediate access.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RegisterResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Server error (e.g., encryption key generation failed)"
+                    }
+                }
+            }
+        },
+        "/api/v1/login": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Authenticate user - Step 1 (Initiate login)",
+                "description": "Start the login process. For new devices, sends a confirmation email with a link valid for 3 hours. For known devices, returns JWT token immediately. Users can login with either email or UIN.",
+                "operationId": "login",
+                "requestBody": {
+                    "description": "Login credentials",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "login",
+                                    "password"
+                                ],
+                                "properties": {
+                                    "login": {
+                                        "description": "Email address or UIN (8 digits)",
+                                        "type": "string",
+                                        "example": "john@example.com"
+                                    },
+                                    "password": {
+                                        "description": "User password",
+                                        "type": "string",
+                                        "format": "password",
+                                        "example": "SecurePass123!"
+                                    },
+                                    "device_name": {
+                                        "description": "Device name (optional, for tracking)",
+                                        "type": "string",
+                                        "example": "iPhone 13",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Check your email for confirmation link (new device) or token issued immediately (known device)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "oneOf": [
+                                        {
+                                            "$ref": "#/components/schemas/LoginStep1Response"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/LoginStep2Response"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials (wrong email/UIN or password)",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
-                                        "user": {
-                                            "$ref": "#/components/schemas/User"
-                                        },
-                                        "access_token": {
+                                        "error": {
                                             "type": "string",
-                                            "example": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-                                        },
-                                        "token_type": {
-                                            "type": "string",
-                                            "example": "bearer"
-                                        },
-                                        "expires_in": {
-                                            "type": "integer",
-                                            "example": 3600
+                                            "example": "Invalid credentials"
                                         }
                                     },
                                     "type": "object"
@@ -97,18 +378,63 @@
                         "content": {
                             "application/json": {
                                 "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/login/confirm": {
+            "post": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Confirm login - Step 2 (Verify email token)",
+                "description": "Verify the confirmation token received via email. After successful verification, JWT token is issued. Token must be confirmed within 3 hours or it expires.",
+                "operationId": "confirmLogin",
+                "requestBody": {
+                    "description": "Confirmation token from email",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "token"
+                                ],
+                                "properties": {
+                                    "token": {
+                                        "description": "Token received in confirmation email",
+                                        "type": "string",
+                                        "example": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Login confirmed successfully. JWT token issued.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ConfirmLoginResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Token is invalid or expired (expired after 3 hours)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
                                     "properties": {
-                                        "message": {
+                                        "error": {
                                             "type": "string",
-                                            "example": "The given data was invalid."
-                                        },
-                                        "errors": {
-                                            "type": "object",
-                                            "example": {
-                                                "email": [
-                                                    "The email has already been taken."
-                                                ]
-                                            }
+                                            "example": "Invalid or expired token"
                                         }
                                     },
                                     "type": "object"
@@ -119,76 +445,57 @@
                 }
             }
         },
-        "/api/v1/login": {
-            "post": {
+        "/api/v1/login/confirm/{token}": {
+            "get": {
                 "tags": [
                     "Authentication"
                 ],
-                "summary": "Authenticate user and return JWT token",
-                "operationId": "da2ca4d7a5cdec77b8b45a20373535cb",
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "required": [
-                                    "email",
-                                    "password"
-                                ],
-                                "properties": {
-                                    "email": {
-                                        "type": "string",
-                                        "format": "email",
-                                        "example": "john@example.com"
-                                    },
-                                    "password": {
-                                        "type": "string",
-                                        "format": "password",
-                                        "example": "password"
-                                    }
-                                },
-                                "type": "object"
-                            }
+                "summary": "Confirm login via web link (browser)",
+                "description": "Verification endpoint for web-based confirmation link from email. Can redirect to mobile app or return token directly. Primarily used for browser/web clients.",
+                "operationId": "confirmLoginWeb",
+                "parameters": [
+                    {
+                        "name": "token",
+                        "in": "path",
+                        "description": "Confirmation token from email",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
                         }
                     }
-                },
+                ],
                 "responses": {
                     "200": {
-                        "description": "Login successful",
+                        "description": "Login confirmed. Redirect to mobile app or return token.",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "properties": {
-                                        "access_token": {
-                                            "type": "string",
-                                            "example": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-                                        },
-                                        "token_type": {
-                                            "type": "string",
-                                            "example": "bearer"
-                                        },
-                                        "expires_in": {
-                                            "type": "integer",
-                                            "example": 3600
-                                        },
-                                        "user": {
-                                            "$ref": "#/components/schemas/User"
-                                        }
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/ConfirmLoginResponse"
                                 }
                             }
                         }
                     },
-                    "401": {
-                        "description": "Invalid credentials",
+                    "302": {
+                        "description": "Redirect to mobile app with token parameter",
+                        "headers": {
+                            "Location": {
+                                "description": "Redirect URL with token parameter",
+                                "schema": {
+                                    "type": "string",
+                                    "format": "uri"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Token is invalid or expired",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "error": {
-                                            "type": "string",
-                                            "example": "Unauthorized"
+                                            "type": "string"
                                         }
                                     },
                                     "type": "object"
@@ -204,8 +511,9 @@
                 "tags": [
                     "Authentication"
                 ],
-                "summary": "Log the user out (Invalidate the token)",
-                "operationId": "c4eddaf1a2e990cc90e4326c0d731d41",
+                "summary": "Logout and invalidate JWT token",
+                "description": "Invalidate the current JWT token and end the session. Existing sessions on other devices remain valid. Must be called before discarding the token.",
+                "operationId": "logout",
                 "responses": {
                     "200": {
                         "description": "Successfully logged out",
@@ -224,20 +532,7 @@
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Unauthenticated."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Unauthenticated (no valid token provided)"
                     }
                 },
                 "security": [
@@ -252,48 +547,22 @@
                 "tags": [
                     "Authentication"
                 ],
-                "summary": "Refresh a JWT token",
-                "operationId": "48bc0aaee4ed3ed89ef12f9065e2df85",
+                "summary": "Refresh JWT token",
+                "description": "Extend the current session by issuing a new JWT token. Call this when token is about to expire (check expires_in value). Old token becomes invalid immediately.",
+                "operationId": "refresh",
                 "responses": {
                     "200": {
                         "description": "Token refreshed successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "properties": {
-                                        "access_token": {
-                                            "type": "string",
-                                            "example": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-                                        },
-                                        "token_type": {
-                                            "type": "string",
-                                            "example": "bearer"
-                                        },
-                                        "expires_in": {
-                                            "type": "integer",
-                                            "example": 3600
-                                        }
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/ConfirmLoginResponse"
                                 }
                             }
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "Unauthenticated."
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Token is invalid or expired and cannot be refreshed"
                     }
                 },
                 "security": [
@@ -308,31 +577,571 @@
                 "tags": [
                     "Authentication"
                 ],
-                "summary": "Get the authenticated User",
-                "operationId": "ae2f8c1ae1f9c5aee99c01f5d13da30b",
+                "summary": "Get the authenticated user profile",
+                "description": "Retrieve the complete profile information of the authenticated user, including personal data, status, and settings.",
+                "operationId": "me",
                 "responses": {
                     "200": {
-                        "description": "User details",
+                        "description": "Current user details",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/User"
+                                    "$ref": "#/components/schemas/UserProfileResponse"
                                 }
                             }
                         }
                     },
                     "401": {
-                        "description": "Unauthenticated",
+                        "description": "Unauthenticated (no valid token provided)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/chats": {
+            "get": {
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "Get all chats for the authenticated user",
+                "description": "Retrieve a list of all chats the user participates in, including private chats, group chats, and favorites. Each chat includes participants, last message, and unread count.",
+                "operationId": "listChats",
+                "parameters": [
+                    {
+                        "name": "type",
+                        "in": "query",
+                        "description": "Filter by chat type (private, group, favorites)",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "private",
+                                "group",
+                                "favorites"
+                            ]
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "List of chats",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ChatResponse"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "Create a new group chat",
+                "description": "Create a new group chat with specified name and initial participants. Creator automatically becomes chat member. Only group chats can be explicitly created; private chats are created when first message is sent.",
+                "operationId": "createChat",
+                "requestBody": {
+                    "description": "Group chat details",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name",
+                                    "user_ids"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "description": "Name for the group chat",
+                                        "type": "string",
+                                        "maxLength": 255,
+                                        "minLength": 1,
+                                        "example": "Project Discussion"
+                                    },
+                                    "user_ids": {
+                                        "description": "List of user UUIDs to add to the chat (creator is added automatically)",
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string",
+                                            "format": "uuid"
+                                        },
+                                        "minItems": 1,
+                                        "example": [
+                                            "550e8400-e29b-41d4-a716-446655440001",
+                                            "550e8400-e29b-41d4-a716-446655440002"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Group chat created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChatResponse"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/chats/{id}": {
+            "get": {
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "Get detailed chat information",
+                "description": "Retrieve complete details of a specific chat including all participants, messages count, and settings. Only accessible to chat members.",
+                "operationId": "getChat",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Chat ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Chat details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ChatResponse"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied - user is not a member of this chat"
+                    },
+                    "404": {
+                        "description": "Chat not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "put": {
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "Update a group chat name",
+                "description": "Change the name of a group chat. Only the chat creator or admins can update the chat name. Private chats cannot be renamed.",
+                "operationId": "updateChat",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Chat ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "New chat name",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "description": "New name for the group chat",
+                                        "type": "string",
+                                        "maxLength": 255,
+                                        "minLength": 1,
+                                        "example": "New Chat Name"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Chat updated successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
-                                        "message": {
+                                        "status": {
                                             "type": "string",
-                                            "example": "Unauthenticated."
+                                            "example": "updated"
                                         }
                                     },
                                     "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied - only creator can update or invalid chat type"
+                    },
+                    "404": {
+                        "description": "Chat not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "Leave a chat",
+                "description": "Remove the current user from a chat. Once left, user will no longer receive messages from this chat. Cannot leave private chats with only 2 members (delete instead). Other participants remain in the chat.",
+                "operationId": "leaveChat",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Chat ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Left the chat successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "left"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Cannot leave this chat type (e.g., only 2 members in private chat)"
+                    },
+                    "404": {
+                        "description": "Chat not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/chats/{id}/add-user": {
+            "post": {
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "Add a user to a group chat",
+                "description": "Add a new member to an existing group chat. Only chat creator or admins can add users. Cannot add user to private chats.",
+                "operationId": "addUserToChat",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Chat ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "User to add",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "user_id"
+                                ],
+                                "properties": {
+                                    "user_id": {
+                                        "description": "UUID of user to add",
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "example": "550e8400-e29b-41d4-a716-446655440001"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "User added successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "user_added"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Cannot add user to this chat type (e.g., private chat)"
+                    },
+                    "404": {
+                        "description": "Chat or user not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/chats/{id}/remove-user/{userId}": {
+            "post": {
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "Remove a user from a group chat",
+                "description": "Remove a member from a group chat. Only chat creator can remove users. User can be notified about removal. Cannot remove from private chats.",
+                "operationId": "removeUserFromChat",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Chat ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "userId",
+                        "in": "path",
+                        "description": "User ID (UUID) to remove",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "550e8400-e29b-41d4-a716-446655440001"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User removed successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "user_removed"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Cannot remove user from this chat type (e.g., private chat)"
+                    },
+                    "404": {
+                        "description": "Chat or user not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/chats/{id}/mute": {
+            "post": {
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "Mute or unmute a chat",
+                "description": "Enable or disable notifications for a specific chat. When muted, new messages don't trigger notifications for the current user. Chat remains visible in chat list.",
+                "operationId": "toggleMuteChat",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Chat ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "Mute setting",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "is_muted"
+                                ],
+                                "properties": {
+                                    "is_muted": {
+                                        "description": "true to mute, false to unmute",
+                                        "type": "boolean",
+                                        "example": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Chat mute status updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "mute_updated"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Chat not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/chats/get-or-create-private/{userId}": {
+            "post": {
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "Get or create a private chat with a specific user",
+                "operationId": "9edc979899e7a52ecb44443ef530edd2",
+                "parameters": [
+                    {
+                        "name": "userId",
+                        "in": "path",
+                        "description": "User ID to create private chat with",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Private chat retrieved or created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Chat"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/chats/favorites/get-or-create": {
+            "get": {
+                "tags": [
+                    "Chats"
+                ],
+                "summary": "Get or create a favorites chat",
+                "operationId": "2c3e34412c3f7daa443a26cd2cfedc6d",
+                "responses": {
+                    "200": {
+                        "description": "Favorites chat retrieved or created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Chat"
                                 }
                             }
                         }
@@ -350,48 +1159,58 @@
                 "tags": [
                     "Messages"
                 ],
-                "summary": "Get conversation between users",
-                "operationId": "b13150577ed04930b5c48b11966766a1",
+                "summary": "Get all messages in a chat",
+                "description": "Retrieve all messages from a specific chat with pagination. Messages are automatically decrypted. Only accessible to chat members. Messages are sorted by creation date (oldest first).",
+                "operationId": "getMessages",
                 "parameters": [
                     {
-                        "name": "user_id",
+                        "name": "chat_id",
                         "in": "query",
-                        "description": "ID of the conversation partner",
+                        "description": "ID of the chat",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "integer",
+                            "example": 1
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Maximum number of messages to return (default: 50)",
+                        "schema": {
+                            "type": "integer",
+                            "example": 50
+                        }
+                    },
+                    {
+                        "name": "offset",
+                        "in": "query",
+                        "description": "Number of messages to skip (for pagination)",
+                        "schema": {
+                            "type": "integer",
+                            "example": 0
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "List of messages in conversation",
+                        "description": "List of messages in chat (decrypted)",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "type": "array",
                                     "items": {
-                                        "$ref": "#/components/schemas/Message"
+                                        "$ref": "#/components/schemas/MessageResponse"
                                     }
                                 }
                             }
                         }
                     },
                     "400": {
-                        "description": "Missing user_id parameter",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "error": {
-                                            "type": "string",
-                                            "example": "user_id parameter is required"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Missing chat_id parameter"
+                    },
+                    "403": {
+                        "description": "Access denied - user not a member of this chat"
                     }
                 },
                 "security": [
@@ -405,26 +1224,39 @@
                     "Messages"
                 ],
                 "summary": "Send an encrypted message",
-                "operationId": "06659e15b117ed642f25c84ec1563aa9",
+                "description": "Send a message to a chat. Message is end-to-end encrypted. Either existing chat_id or new receiver_id should be provided. If receiver_id is provided, private chat is created automatically.",
+                "operationId": "sendMessage",
                 "requestBody": {
+                    "description": "Message data",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "receiver_id",
                                     "content"
                                 ],
                                 "properties": {
-                                    "receiver_id": {
+                                    "chat_id": {
+                                        "description": "ID of existing chat (if empty, receiver_id must be provided)",
                                         "type": "integer",
-                                        "example": 2
+                                        "example": 1,
+                                        "nullable": true
+                                    },
+                                    "receiver_id": {
+                                        "description": "UUID of receiver (for new private chats, if empty chat_id must be provided)",
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "example": "550e8400-e29b-41d4-a716-446655440001",
+                                        "nullable": true
                                     },
                                     "content": {
+                                        "description": "Message text (encrypted before sending)",
                                         "type": "string",
+                                        "maxLength": 65535,
                                         "example": "Hello, how are you?"
                                     },
                                     "type": {
+                                        "description": "Message type (default: text)",
                                         "type": "string",
                                         "enum": [
                                             "text",
@@ -452,6 +1284,10 @@
                                             "type": "integer",
                                             "example": 1
                                         },
+                                        "chat_id": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
                                         "status": {
                                             "type": "string",
                                             "example": "sent"
@@ -466,40 +1302,14 @@
                             }
                         }
                     },
-                    "422": {
-                        "description": "Validation error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "The given data was invalid."
-                                        },
-                                        "errors": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                    "403": {
+                        "description": "Access denied - not a member of this chat"
                     },
                     "404": {
-                        "description": "Receiver not found",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "error": {
-                                            "type": "string",
-                                            "example": "Receiver not found"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Chat or receiver not found"
+                    },
+                    "422": {
+                        "description": "Validation error"
                     }
                 },
                 "security": [
@@ -515,7 +1325,8 @@
                     "Messages"
                 ],
                 "summary": "Get a specific message",
-                "operationId": "38efca5f23703e7e98b2a79bb05fac9f",
+                "description": "Retrieve and decrypt a specific message by ID. Message is automatically marked as read. Only accessible to chat members.",
+                "operationId": "getMessage",
                 "parameters": [
                     {
                         "name": "id",
@@ -523,30 +1334,283 @@
                         "description": "Message ID",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "integer",
+                            "example": 1
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Message details",
+                        "description": "Message details (decrypted)",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Message"
+                                    "$ref": "#/components/schemas/MessageResponse_v2"
                                 }
                             }
                         }
                     },
                     "403": {
-                        "description": "Access denied",
+                        "description": "Access denied - user not a member of this chat"
+                    },
+                    "404": {
+                        "description": "Message not found"
+                    },
+                    "500": {
+                        "description": "Decryption error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/messages/{id}/upload": {
+            "post": {
+                "tags": [
+                    "Messages"
+                ],
+                "summary": "Upload a file attachment to a message",
+                "description": "Attach a file to a message. File is stored encrypted on server. Only message author can add attachments. Supports any file type within size limits.",
+                "operationId": "uploadFileToMessage",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Message ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "description": "File to upload",
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "file"
+                                ],
+                                "properties": {
+                                    "file": {
+                                        "description": "Binary file content (max 100MB recommended)",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "File uploaded and attached successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "file_uploaded"
+                                        },
+                                        "attachment_id": {
+                                            "type": "integer",
+                                            "example": 1
+                                        },
+                                        "file_path": {
+                                            "type": "string",
+                                            "example": "uploads/messages/file.jpg"
+                                        },
+                                        "file_size": {
+                                            "type": "integer",
+                                            "example": 102400
+                                        },
+                                        "mime_type": {
+                                            "type": "string",
+                                            "example": "image/jpeg"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied - not the message author"
+                    },
+                    "404": {
+                        "description": "Message not found"
+                    },
+                    "413": {
+                        "description": "File too large"
+                    },
+                    "422": {
+                        "description": "Validation error (invalid file type, etc)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/users/profile": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get current user profile",
+                "description": "Retrieve the complete profile of the authenticated user including personal data, UIN, username, status, and created date.",
+                "operationId": "getProfile",
+                "responses": {
+                    "200": {
+                        "description": "User profile data",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/UserProfileResponse"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/users/username": {
+            "post": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Set or update custom username",
+                "description": "Create or change a custom unique username (like in Telegram). Username must be 3-20 characters, Latin letters, digits, underscore, and dash only. Can be changed anytime. UIN remains unchanged.",
+                "operationId": "setUsername",
+                "requestBody": {
+                    "description": "New username",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "username"
+                                ],
+                                "properties": {
+                                    "username": {
+                                        "type": "string",
+                                        "maxLength": 20,
+                                        "minLength": 3,
+                                        "pattern": "^[a-zA-Z0-9_-]+$",
+                                        "example": "john_doe"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Username updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "username": {
+                                            "type": "string",
+                                            "example": "john_doe"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid username format",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "error": {
                                             "type": "string",
-                                            "example": "Access denied"
+                                            "example": "Username must contain 3-20 characters (letters, digits, underscore, dash)"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error or username already taken"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/users/search": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Search user by UIN or username",
+                "description": "Search for a user by their 8-digit UIN or custom username. Can be used to find users for adding to contacts or group chats. Returns basic user profile information.",
+                "operationId": "searchUser",
+                "parameters": [
+                    {
+                        "name": "query",
+                        "in": "query",
+                        "description": "Search query - either UIN (8 digits) or username (3-20 chars, latin only)",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "minLength": 3,
+                            "example": "12345678"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SearchUserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid search query format",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "Invalid search query"
                                         }
                                     },
                                     "type": "object"
@@ -555,30 +1619,14 @@
                         }
                     },
                     "404": {
-                        "description": "Message not found",
+                        "description": "User not found",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "error": {
                                             "type": "string",
-                                            "example": "Message not found"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
-                    },
-                    "500": {
-                        "description": "Decryption error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "error": {
-                                            "type": "string",
-                                            "example": "Failed to decrypt message"
+                                            "example": "User not found"
                                         }
                                     },
                                     "type": "object"
@@ -594,37 +1642,195 @@
                 ]
             }
         },
-        "/api/v1/messages/{id}/upload": {
-            "post": {
+        "/api/v1/users/{identifier}": {
+            "get": {
                 "tags": [
-                    "Messages"
+                    "Users"
                 ],
-                "summary": "Upload a file for a message",
-                "operationId": "c770e9aee5364b372845e66acdbbd505",
+                "summary": "Get user profile by UIN or username",
+                "description": "Retrieve detailed user profile information using their UIN (8-digit identifier) or custom username. Returns public profile information including status and last seen time.",
+                "operationId": "getUserByIdentifier",
                 "parameters": [
                     {
-                        "name": "id",
+                        "name": "identifier",
                         "in": "path",
-                        "description": "Message ID",
+                        "description": "User identifier - either UIN (8 digits) or username (3-20 chars)",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string",
+                            "example": "john_doe"
                         }
                     }
                 ],
+                "responses": {
+                    "200": {
+                        "description": "User profile data",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SearchUserResponse"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found with the given identifier"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/sessions": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get all active sessions for current user",
+                "description": "Retrieve a list of all currently active sessions (confirmed login devices). Each session contains device info, confirmation date, and expiration date. Helps user track and manage their connected devices.",
+                "operationId": "getSessions",
+                "responses": {
+                    "200": {
+                        "description": "List of active sessions across all devices",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "properties": {
+                                            "id": {
+                                                "description": "Session ID",
+                                                "type": "integer"
+                                            },
+                                            "device_name": {
+                                                "description": "User-friendly device name",
+                                                "type": "string",
+                                                "example": "iPhone 13"
+                                            },
+                                            "ip_address": {
+                                                "description": "IP address where device logged in",
+                                                "type": "string",
+                                                "format": "ipv4",
+                                                "example": "192.168.1.1"
+                                            },
+                                            "confirmed_at": {
+                                                "description": "When this device was confirmed",
+                                                "type": "string",
+                                                "format": "date-time"
+                                            },
+                                            "expires_at": {
+                                                "description": "When this session expires",
+                                                "type": "string",
+                                                "format": "date-time"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/sessions/{sessionId}": {
+            "delete": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "End a specific session (logout from device)",
+                "description": "Terminate a specific session and logout from that device. Other active sessions remain unaffected. The session will no longer be able to use their JWT tokens.",
+                "operationId": "endSession",
+                "parameters": [
+                    {
+                        "name": "sessionId",
+                        "in": "path",
+                        "description": "Unique session identifier to terminate",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 42
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Session successfully terminated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "Session ended"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found or does not belong to current user"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/users/status": {
+            "post": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Set user online status and custom status text",
+                "description": "Update the user's online status (mood) and optional custom status text. User can only select offline status indirectly (via inactivity). Custom status supports emojis and has a max of 50 characters. Status is displayed to friends in their contact list.",
+                "operationId": "setStatus",
                 "requestBody": {
+                    "description": "Status information to set",
                     "required": true,
                     "content": {
-                        "multipart/form-data": {
+                        "application/json": {
                             "schema": {
                                 "required": [
-                                    "file"
+                                    "online_status"
                                 ],
                                 "properties": {
-                                    "file": {
-                                        "description": "File to upload",
+                                    "online_status": {
+                                        "description": "Selected mood/status",
                                         "type": "string",
-                                        "format": "binary"
+                                        "enum": [
+                                            "online",
+                                            "chatty",
+                                            "angry",
+                                            "depressed",
+                                            "home",
+                                            "work",
+                                            "eating",
+                                            "away",
+                                            "unavailable",
+                                            "busy",
+                                            "do_not_disturb"
+                                        ],
+                                        "example": "chatty"
+                                    },
+                                    "custom_status": {
+                                        "description": "Optional custom status text (max 50 characters, supports emoji and 😀)",
+                                        "type": "string",
+                                        "maxLength": 50,
+                                        "example": "На встрече 🎯",
+                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -634,18 +1840,24 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "File uploaded successfully",
+                        "description": "Status updated successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "status": {
                                             "type": "string",
-                                            "example": "file_uploaded"
+                                            "example": "success"
                                         },
-                                        "file_path": {
+                                        "online_status": {
+                                            "description": "Set online status",
                                             "type": "string",
-                                            "example": "uploads/file.jpg"
+                                            "example": "chatty"
+                                        },
+                                        "display_status": {
+                                            "description": "Combined display string with localization",
+                                            "type": "string",
+                                            "example": "Готов поболтать - На встрече 🎯"
                                         }
                                     },
                                     "type": "object"
@@ -653,15 +1865,110 @@
                             }
                         }
                     },
-                    "403": {
-                        "description": "Access denied",
+                    "422": {
+                        "description": "Validation error (invalid status, custom status too long, etc)"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/users/status/available": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get list of available online statuses",
+                "description": "Retrieve list of all available online statuses (moods) that user can select from. Includes both localized display names and status keys for client-side usage.",
+                "operationId": "getAvailableStatuses",
+                "responses": {
+                    "200": {
+                        "description": "List of available online statuses with localized names",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
-                                        "error": {
+                                        "statuses": {
+                                            "description": "Key-value pairs of status key and localized display name",
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "string",
+                                                "property": null
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/users/{identifier}/status": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get user status (for friends/contacts list)",
+                "description": "Retrieve the current status of a user, including whether they are online and their selected status mood. If offline, shows time of last seen. Used for displaying user status in contacts list.",
+                "operationId": "getUserStatus",
+                "parameters": [
+                    {
+                        "name": "identifier",
+                        "in": "path",
+                        "description": "User UIN (8 digits) or username",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "example": "john_doe"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User status information",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "id": {
                                             "type": "string",
-                                            "example": "Access denied"
+                                            "format": "uuid"
+                                        },
+                                        "name": {
+                                            "type": "string"
+                                        },
+                                        "uin": {
+                                            "type": "string"
+                                        },
+                                        "is_online": {
+                                            "description": "true if user is online, false if offline",
+                                            "type": "boolean"
+                                        },
+                                        "status": {
+                                            "description": "Localized status name",
+                                            "type": "string",
+                                            "example": "Готов поболтать"
+                                        },
+                                        "status_key": {
+                                            "description": "Status key for client-side use",
+                                            "type": "string",
+                                            "example": "chatty"
+                                        },
+                                        "last_seen": {
+                                            "description": "Human-readable last seen time (only if offline)",
+                                            "type": "string",
+                                            "example": "3 hours ago",
+                                            "nullable": true
                                         }
                                     },
                                     "type": "object"
@@ -670,17 +1977,146 @@
                         }
                     },
                     "404": {
-                        "description": "Message not found",
+                        "description": "User not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/languages": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get list of supported languages",
+                "description": "Retrieve all supported languages/locales with their display names and localized status names. Used for language selection UI and status display.",
+                "operationId": "getLanguages",
+                "responses": {
+                    "200": {
+                        "description": "List of supported languages and status names in each language",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
-                                        "error": {
+                                        "supported_locales": {
+                                            "description": "Available language codes",
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "example": [
+                                                "en",
+                                                "ru",
+                                                "de"
+                                            ]
+                                        },
+                                        "current_locale": {
+                                            "description": "Current user's language setting",
                                             "type": "string",
-                                            "example": "Message not found"
+                                            "example": "en"
+                                        },
+                                        "language_names": {
+                                            "description": "Language names in their native language",
+                                            "type": "object",
+                                            "example": {
+                                                "en": "English",
+                                                "ru": "Русский",
+                                                "de": "Deutsch"
+                                            }
+                                        },
+                                        "status_names": {
+                                            "description": "Status names in user's current language",
+                                            "type": "object",
+                                            "example": {
+                                                "online": "Online",
+                                                "chatty": "Chatty",
+                                                "angry": "Angry"
+                                            }
                                         }
                                     },
                                     "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/users/locale": {
+            "put": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Update user preferred language",
+                "description": "Change the user's interface language preference. Language selection persists across sessions. Affects status display and all UI text. Should match system locale auto-detection where possible.",
+                "operationId": "updateLocale",
+                "requestBody": {
+                    "description": "New language locale",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "locale"
+                                ],
+                                "properties": {
+                                    "locale": {
+                                        "description": "Language code (2-letter ISO 639-1)",
+                                        "type": "string",
+                                        "enum": [
+                                            "en",
+                                            "ru",
+                                            "de"
+                                        ],
+                                        "example": "ru"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Language updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "success"
+                                        },
+                                        "locale": {
+                                            "type": "string",
+                                            "example": "ru"
+                                        },
+                                        "language_name": {
+                                            "description": "Display name of selected language",
+                                            "type": "string",
+                                            "example": "Русский"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error (unsupported language)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ValidationError"
                                 }
                             }
                         }
@@ -699,23 +2135,45 @@
                     "WebRTC"
                 ],
                 "summary": "Initiate a WebRTC call",
-                "operationId": "3890b3fdc339d938d1a5d50765f7a2d8",
+                "description": "Start a new audio or video call to another chat member. Both caller and callee must be members of the specified chat. Call enters 'ringing' state and awaits answer. SDP offer contains codec and connection information.",
+                "operationId": "initiateCall",
                 "requestBody": {
+                    "description": "Call initiation parameters",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "receiver_id"
+                                    "chat_id",
+                                    "callee_id",
+                                    "type",
+                                    "sdp_offer"
                                 ],
                                 "properties": {
-                                    "receiver_id": {
+                                    "chat_id": {
+                                        "description": "Chat ID where call is initiated",
                                         "type": "integer",
-                                        "example": 2
+                                        "example": 1
                                     },
-                                    "is_video": {
-                                        "type": "boolean",
-                                        "example": true
+                                    "callee_id": {
+                                        "description": "UUID of user to call",
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "example": "550e8400-e29b-41d4-a716-446655440001"
+                                    },
+                                    "type": {
+                                        "description": "Call type",
+                                        "type": "string",
+                                        "enum": [
+                                            "audio",
+                                            "video"
+                                        ],
+                                        "example": "video"
+                                    },
+                                    "sdp_offer": {
+                                        "description": "SDP offer from caller's WebRTC peer connection",
+                                        "type": "string",
+                                        "example": "v=0\\r\\no=- 1234567890 1 IN IP4 127.0.0.1\\r\\ns=-\\r\\nt=0 0\\r\\n..."
                                     }
                                 },
                                 "type": "object"
@@ -724,51 +2182,24 @@
                     }
                 },
                 "responses": {
-                    "200": {
+                    "201": {
                         "description": "Call initiated successfully",
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "properties": {
-                                        "call_id": {
-                                            "type": "string",
-                                            "example": "abc123def456"
-                                        },
-                                        "sdp_offer": {
-                                            "type": "string",
-                                            "example": "v=0\\r\\no=- 1234567890 1 IN IP4 127.0.0.1\\r\\n..."
-                                        },
-                                        "ice_candidates": {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string",
-                                                "example": "candidate:1 1 UDP 2122252543 192.168.1.1 56789 typ host"
-                                            }
-                                        }
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/CallResponse"
                                 }
                             }
                         }
                     },
+                    "403": {
+                        "description": "Access denied - caller or callee not in this chat"
+                    },
+                    "404": {
+                        "description": "Chat or callee not found"
+                    },
                     "422": {
-                        "description": "Validation error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "The given data was invalid."
-                                        },
-                                        "errors": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Validation error"
                     }
                 },
                 "security": [
@@ -784,24 +2215,29 @@
                     "WebRTC"
                 ],
                 "summary": "Answer a WebRTC call",
-                "operationId": "2aae5066f6f4c0b25c167c91c79f59eb",
+                "description": "Answer an incoming call. Only the callee can answer their call. Call must be in 'ringing' state. SDP answer contains the callee's codec and connection information.",
+                "operationId": "answerCall",
                 "requestBody": {
+                    "description": "Call answer parameters",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "call_id",
+                                    "call_uuid",
                                     "sdp_answer"
                                 ],
                                 "properties": {
-                                    "call_id": {
+                                    "call_uuid": {
+                                        "description": "UUID of the call to answer",
                                         "type": "string",
-                                        "example": "abc123def456"
+                                        "format": "uuid",
+                                        "example": "550e8400-e29b-41d4-a716-446655440000"
                                     },
                                     "sdp_answer": {
+                                        "description": "SDP answer from callee's WebRTC peer connection",
                                         "type": "string",
-                                        "example": "v=0\\r\\no=- 1234567890 1 IN IP4 127.0.0.1\\r\\n..."
+                                        "example": "v=0\\r\\no=- 1234567890 1 IN IP4 127.0.0.1\\r\\ns=-\\r\\nt=0 0\\r\\n..."
                                     }
                                 },
                                 "type": "object"
@@ -811,14 +2247,19 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "Call answered successfully",
+                        "description": "Call answered successfully, call becomes active",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
                                         "status": {
                                             "type": "string",
-                                            "example": "call_answered"
+                                            "example": "active"
+                                        },
+                                        "call_uuid": {
+                                            "type": "string",
+                                            "format": "uuid",
+                                            "example": "550e8400-e29b-41d4-a716-446655440000"
                                         }
                                     },
                                     "type": "object"
@@ -826,24 +2267,17 @@
                             }
                         }
                     },
+                    "403": {
+                        "description": "Access denied - only callee can answer"
+                    },
+                    "404": {
+                        "description": "Call not found"
+                    },
+                    "409": {
+                        "description": "Call is not in ringing state (already answered, missed, or declined)"
+                    },
                     "422": {
-                        "description": "Validation error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "properties": {
-                                        "message": {
-                                            "type": "string",
-                                            "example": "The given data was invalid."
-                                        },
-                                        "errors": {
-                                            "type": "object"
-                                        }
-                                    },
-                                    "type": "object"
-                                }
-                            }
-                        }
+                        "description": "Validation error"
                     }
                 },
                 "security": [
@@ -859,22 +2293,27 @@
                     "WebRTC"
                 ],
                 "summary": "Add ICE candidate for WebRTC call",
-                "operationId": "fdffa394fd494de230acf84816201276",
+                "description": "Add an ICE candidate discovered by the local WebRTC peer connection. Multiple candidates are typically sent for connection optimization. Both caller and callee can add ICE candidates.",
+                "operationId": "addIceCandidate",
                 "requestBody": {
+                    "description": "ICE candidate information",
                     "required": true,
                     "content": {
                         "application/json": {
                             "schema": {
                                 "required": [
-                                    "call_id",
+                                    "call_uuid",
                                     "candidate"
                                 ],
                                 "properties": {
-                                    "call_id": {
+                                    "call_uuid": {
+                                        "description": "UUID of the call",
                                         "type": "string",
-                                        "example": "abc123def456"
+                                        "format": "uuid",
+                                        "example": "550e8400-e29b-41d4-a716-446655440000"
                                     },
                                     "candidate": {
+                                        "description": "ICE candidate string from RTCIceCandidate",
                                         "type": "string",
                                         "example": "candidate:1 1 UDP 2122252543 192.168.1.1 56789 typ host"
                                     }
@@ -894,6 +2333,10 @@
                                         "status": {
                                             "type": "string",
                                             "example": "candidate_added"
+                                        },
+                                        "call_uuid": {
+                                            "type": "string",
+                                            "format": "uuid"
                                         }
                                     },
                                     "type": "object"
@@ -901,24 +2344,175 @@
                             }
                         }
                     },
+                    "403": {
+                        "description": "Access denied - not a participant in this call"
+                    },
+                    "404": {
+                        "description": "Call not found"
+                    },
                     "422": {
-                        "description": "Validation error",
+                        "description": "Validation error"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/calls/{callUuid}/decline": {
+            "post": {
+                "tags": [
+                    "WebRTC"
+                ],
+                "summary": "Decline a WebRTC call",
+                "operationId": "6fc900d40ca6bacb43ab762838d4589e",
+                "parameters": [
+                    {
+                        "name": "callUuid",
+                        "in": "path",
+                        "description": "Call UUID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Call declined",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "properties": {
-                                        "message": {
+                                        "status": {
                                             "type": "string",
-                                            "example": "The given data was invalid."
-                                        },
-                                        "errors": {
-                                            "type": "object"
+                                            "example": "declined"
                                         }
                                     },
                                     "type": "object"
                                 }
                             }
                         }
+                    },
+                    "403": {
+                        "description": "Access denied"
+                    },
+                    "404": {
+                        "description": "Call not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/calls/{callUuid}/end": {
+            "post": {
+                "tags": [
+                    "WebRTC"
+                ],
+                "summary": "End a WebRTC call",
+                "operationId": "774019fa8060a3549e5ea3d3cb0dd0c9",
+                "parameters": [
+                    {
+                        "name": "callUuid",
+                        "in": "path",
+                        "description": "Call UUID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "reason": {
+                                        "type": "string",
+                                        "example": "normal",
+                                        "nullable": true
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Call ended",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ended"
+                                        },
+                                        "duration": {
+                                            "type": "integer",
+                                            "example": 120
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied"
+                    },
+                    "404": {
+                        "description": "Call not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/api/v1/calls/{callUuid}": {
+            "get": {
+                "tags": [
+                    "WebRTC"
+                ],
+                "summary": "Get call details",
+                "operationId": "8ad95100244ce4cf2ba108bd6161d08a",
+                "parameters": [
+                    {
+                        "name": "callUuid",
+                        "in": "path",
+                        "description": "Call UUID",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Call details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Call"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Access denied"
+                    },
+                    "404": {
+                        "description": "Call not found"
                     }
                 },
                 "security": [
@@ -979,12 +2573,172 @@
                 },
                 "type": "object"
             },
+            "Attachment": {
+                "title": "Attachment",
+                "description": "Вложение к сообщению (файл, изображение и т. п.)",
+                "required": [
+                    "message_id",
+                    "file_path"
+                ],
+                "properties": {
+                    "id": {
+                        "description": "Уникальный идентификатор вложения",
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 123
+                    },
+                    "message_id": {
+                        "description": "ID сообщения, к которому прикреплено вложение",
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 456
+                    },
+                    "file_path": {
+                        "description": "Путь к файлу на сервере",
+                        "type": "string",
+                        "example": "/storage/uploads/photo.jpg"
+                    },
+                    "mime_type": {
+                        "description": "MIME‑тип файла (например, image/jpeg)",
+                        "type": "string",
+                        "example": "image/jpeg",
+                        "nullable": true
+                    },
+                    "size": {
+                        "description": "Размер файла в байтах",
+                        "type": "integer",
+                        "example": 102400,
+                        "nullable": true
+                    },
+                    "name": {
+                        "description": "Оригинальное имя файла (как было загружено)",
+                        "type": "string",
+                        "example": "отчёт_2025.pdf",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "description": "Дата создания записи",
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-01-15T10:30:00Z",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "Call": {
+                "title": "Call",
+                "description": "Модель звонка (аудио/видео)",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "call_uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                    },
+                    "chat_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "caller_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                    },
+                    "callee_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440001"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "audio",
+                            "video"
+                        ],
+                        "example": "video"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "ringing",
+                            "active",
+                            "ended",
+                            "missed",
+                            "declined",
+                            "failed"
+                        ],
+                        "example": "active"
+                    },
+                    "duration": {
+                        "type": "integer",
+                        "example": 120,
+                        "nullable": true
+                    },
+                    "started_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "answered_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "ended_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "Chat": {
+                "title": "Chat",
+                "description": "Модель чата (личный, групповой, избранное)",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "private",
+                            "group",
+                            "favorites"
+                        ],
+                        "example": "private"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Рабочий чат",
+                        "nullable": true
+                    },
+                    "creator_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440000",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
             "Message": {
                 "title": "Message",
                 "description": "Message model with end-to-end encryption",
                 "required": [
                     "sender_id",
-                    "receiver_id",
+                    "chat_id",
                     "encrypted_content",
                     "iv",
                     "type"
@@ -996,17 +2750,17 @@
                         "format": "int64",
                         "example": 1
                     },
-                    "sender_id": {
-                        "description": "ID of the user who sent the message",
+                    "chat_id": {
+                        "description": "Identifier for the chat",
                         "type": "integer",
                         "format": "int64",
                         "example": 1
                     },
-                    "receiver_id": {
-                        "description": "ID of the user who received the message",
-                        "type": "integer",
-                        "format": "int64",
-                        "example": 2
+                    "sender_id": {
+                        "description": "UUID of the user who sent the message",
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
                     },
                     "encrypted_content": {
                         "description": "Encrypted content of the message",
@@ -1035,11 +2789,6 @@
                         ],
                         "example": "text"
                     },
-                    "file_path": {
-                        "description": "Path to the uploaded file (if any)",
-                        "type": "string",
-                        "example": "uploads/file.jpg"
-                    },
                     "created_at": {
                         "description": "Message creation timestamp",
                         "type": "string",
@@ -1053,9 +2802,6 @@
                         "example": "2023-01-01T12:05:00Z"
                     },
                     "sender": {
-                        "$ref": "#/components/schemas/User"
-                    },
-                    "receiver": {
                         "$ref": "#/components/schemas/User"
                     }
                 },
@@ -1071,10 +2817,10 @@
                 ],
                 "properties": {
                     "id": {
-                        "description": "Unique identifier for the user",
-                        "type": "integer",
-                        "format": "int64",
-                        "example": 1
+                        "description": "Unique identifier for the user (UUID)",
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
                     },
                     "name": {
                         "description": "User's full name",
@@ -1086,6 +2832,57 @@
                         "type": "string",
                         "format": "email",
                         "example": "john@example.com"
+                    },
+                    "uin": {
+                        "description": "User's UIN (8-digit unique identifier like in ICQ)",
+                        "type": "string",
+                        "example": "12345678"
+                    },
+                    "username": {
+                        "description": "User's unique username (latin letters, digits, underscore, dash)",
+                        "type": "string",
+                        "example": "john_doe",
+                        "nullable": true
+                    },
+                    "status": {
+                        "description": "User status (online/offline)",
+                        "type": "string",
+                        "enum": [
+                            "online",
+                            "offline"
+                        ],
+                        "example": "online"
+                    },
+                    "online_status": {
+                        "description": "User's selected online status",
+                        "type": "string",
+                        "enum": [
+                            "online",
+                            "chatty",
+                            "angry",
+                            "depressed",
+                            "home",
+                            "work",
+                            "eating",
+                            "away",
+                            "unavailable",
+                            "busy",
+                            "do_not_disturb"
+                        ],
+                        "example": "chatty"
+                    },
+                    "custom_status": {
+                        "description": "User's custom status text (max 50 characters, supports emoji)",
+                        "type": "string",
+                        "example": "На встрече 🎯",
+                        "nullable": true
+                    },
+                    "last_seen_at": {
+                        "description": "Last time user was online",
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2023-01-01T12:00:00Z",
+                        "nullable": true
                     },
                     "public_key": {
                         "description": "User's public encryption key",
@@ -1103,23 +2900,1160 @@
                         "type": "string",
                         "format": "date-time",
                         "example": "2023-01-01T12:00:00Z"
-                    },
-                    "sent_messages": {
-                        "description": "Messages sent by the user",
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/Message"
-                        }
-                    },
-                    "received_messages": {
-                        "description": "Messages received by the user",
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/Message"
-                        }
                     }
                 },
                 "type": "object"
+            },
+            "UserPublicProfile": {
+                "title": "User Public Profile",
+                "description": "Public user information visible to other users",
+                "properties": {
+                    "id": {
+                        "description": "Swagger documentation for User model and related schemas",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uin": {
+                        "type": "string"
+                    },
+                    "username": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "online",
+                            "offline"
+                        ]
+                    },
+                    "online_status": {
+                        "type": "string"
+                    },
+                    "custom_status": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "last_seen_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "LoginToken": {
+                "title": "Login Token",
+                "description": "Temporary token for email confirmation (valid for 3 hours)",
+                "properties": {
+                    "id": {
+                        "description": "Token ID",
+                        "type": "integer"
+                    },
+                    "user_id": {
+                        "description": "User UUID",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "token": {
+                        "description": "Unique confirmation token sent in email",
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "device_name": {
+                        "description": "User-provided device name",
+                        "type": "string"
+                    },
+                    "ip_address": {
+                        "type": "string",
+                        "format": "ipv4"
+                    },
+                    "user_agent": {
+                        "description": "Device user agent string",
+                        "type": "string"
+                    },
+                    "confirmed_at": {
+                        "description": "When token was confirmed",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "expires_at": {
+                        "description": "Token expiration time (3 hours after creation)",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "PaginationMeta": {
+                "properties": {
+                    "current_page": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "per_page": {
+                        "type": "integer",
+                        "example": 15
+                    },
+                    "total": {
+                        "type": "integer",
+                        "example": 100
+                    },
+                    "last_page": {
+                        "type": "integer",
+                        "example": 7
+                    }
+                },
+                "type": "object"
+            },
+            "RegisterRequestBody": {
+                "title": "Register Request",
+                "required": [
+                    "name",
+                    "email",
+                    "password",
+                    "password_confirmation"
+                ],
+                "properties": {
+                    "name": {
+                        "description": "Swagger documentation for Request DTOs and Query Parameters",
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 2,
+                        "example": "John Doe"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "john@example.com"
+                    },
+                    "password": {
+                        "type": "string",
+                        "format": "password",
+                        "minLength": 8,
+                        "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)",
+                        "example": "SecurePass123!"
+                    },
+                    "password_confirmation": {
+                        "type": "string",
+                        "format": "password",
+                        "example": "SecurePass123!"
+                    }
+                },
+                "type": "object"
+            },
+            "LoginRequestBody": {
+                "title": "Login Request",
+                "required": [
+                    "login",
+                    "password"
+                ],
+                "properties": {
+                    "login": {
+                        "description": "Email or UIN (8-digit identifier)",
+                        "type": "string",
+                        "example": "john@example.com"
+                    },
+                    "password": {
+                        "type": "string",
+                        "format": "password",
+                        "example": "SecurePass123!"
+                    },
+                    "device_name": {
+                        "type": "string",
+                        "example": "iPhone 13",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ConfirmLoginRequestBody": {
+                "title": "Confirm Login Request",
+                "required": [
+                    "token"
+                ],
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                    }
+                },
+                "type": "object"
+            },
+            "SendMessageRequestBody": {
+                "title": "Send Message Request",
+                "required": [
+                    "content"
+                ],
+                "properties": {
+                    "chat_id": {
+                        "type": "integer",
+                        "example": 1,
+                        "nullable": true
+                    },
+                    "receiver_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440001",
+                        "nullable": true
+                    },
+                    "content": {
+                        "type": "string",
+                        "maxLength": 65535,
+                        "example": "Hello! How are you?"
+                    },
+                    "type": {
+                        "type": "string",
+                        "default": "text",
+                        "enum": [
+                            "text",
+                            "image",
+                            "voice",
+                            "video",
+                            "file"
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "CreateGroupChatRequestBody": {
+                "title": "Create Group Chat Request",
+                "required": [
+                    "name",
+                    "user_ids"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 1,
+                        "example": "Project Discussion"
+                    },
+                    "user_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "minItems": 1,
+                        "example": [
+                            "550e8400-e29b-41d4-a716-446655440001",
+                            "550e8400-e29b-41d4-a716-446655440002"
+                        ]
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateChatRequestBody": {
+                "title": "Update Chat Request",
+                "required": [
+                    "name"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "minLength": 1,
+                        "example": "New Chat Name"
+                    }
+                },
+                "type": "object"
+            },
+            "AddUserToChatRequestBody": {
+                "title": "Add User to Chat Request",
+                "required": [
+                    "user_id"
+                ],
+                "properties": {
+                    "user_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440001"
+                    }
+                },
+                "type": "object"
+            },
+            "SetStatusRequestBody": {
+                "title": "Set Status Request",
+                "required": [
+                    "online_status"
+                ],
+                "properties": {
+                    "online_status": {
+                        "type": "string",
+                        "enum": [
+                            "online",
+                            "chatty",
+                            "angry",
+                            "depressed",
+                            "home",
+                            "work",
+                            "eating",
+                            "away",
+                            "unavailable",
+                            "busy",
+                            "do_not_disturb"
+                        ],
+                        "example": "chatty"
+                    },
+                    "custom_status": {
+                        "type": "string",
+                        "maxLength": 50,
+                        "example": "На встрече 🎯",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "SetUsernameRequestBody": {
+                "title": "Set Username Request",
+                "required": [
+                    "username"
+                ],
+                "properties": {
+                    "username": {
+                        "type": "string",
+                        "maxLength": 20,
+                        "minLength": 3,
+                        "pattern": "^[a-zA-Z0-9_-]+$",
+                        "example": "john_doe"
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateLocaleRequestBody": {
+                "title": "Update Locale Request",
+                "required": [
+                    "locale"
+                ],
+                "properties": {
+                    "locale": {
+                        "type": "string",
+                        "enum": [
+                            "en",
+                            "ru",
+                            "de"
+                        ],
+                        "example": "ru"
+                    }
+                },
+                "type": "object"
+            },
+            "InitiateCallRequestBody": {
+                "title": "Initiate Call Request",
+                "required": [
+                    "chat_id",
+                    "callee_id",
+                    "type",
+                    "sdp_offer"
+                ],
+                "properties": {
+                    "chat_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "callee_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440001"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "audio",
+                            "video"
+                        ],
+                        "example": "video"
+                    },
+                    "sdp_offer": {
+                        "type": "string",
+                        "example": "v=0\\r\\no=- 1234567890 1 IN IP4 127.0.0.1\\r\\ns=-\\r\\nt=0 0\\r\\n..."
+                    }
+                },
+                "type": "object"
+            },
+            "AnswerCallRequestBody": {
+                "title": "Answer Call Request",
+                "required": [
+                    "call_uuid",
+                    "sdp_answer"
+                ],
+                "properties": {
+                    "call_uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                    },
+                    "sdp_answer": {
+                        "type": "string",
+                        "example": "v=0\\r\\no=- 1234567890 1 IN IP4 127.0.0.1\\r\\ns=-\\r\\nt=0 0\\r\\n..."
+                    }
+                },
+                "type": "object"
+            },
+            "AddIceCandidateRequestBody": {
+                "title": "Add ICE Candidate Request",
+                "required": [
+                    "call_uuid",
+                    "candidate"
+                ],
+                "properties": {
+                    "call_uuid": {
+                        "type": "string",
+                        "format": "uuid",
+                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                    },
+                    "candidate": {
+                        "type": "string",
+                        "example": "candidate:1 1 UDP 2122252543 192.168.1.1 56789 typ host"
+                    }
+                },
+                "type": "object"
+            },
+            "RegisterResponse": {
+                "title": "Register Response",
+                "description": "Successful user registration response",
+                "properties": {
+                    "user": {
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "format": "uuid",
+                                "example": "550e8400-e29b-41d4-a716-446655440000"
+                            },
+                            "name": {
+                                "type": "string",
+                                "example": "John Doe"
+                            },
+                            "email": {
+                                "type": "string",
+                                "format": "email",
+                                "example": "john@example.com"
+                            },
+                            "uin": {
+                                "description": "8-digit UIN generated at registration",
+                                "type": "string",
+                                "example": "12345678"
+                            },
+                            "username": {
+                                "type": "string",
+                                "example": null,
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "access_token": {
+                        "description": "JWT access token",
+                        "type": "string"
+                    },
+                    "token_type": {
+                        "type": "string",
+                        "example": "bearer"
+                    },
+                    "expires_in": {
+                        "description": "Token TTL in seconds",
+                        "type": "integer",
+                        "example": 3600
+                    }
+                },
+                "type": "object"
+            },
+            "LoginStep1Response": {
+                "title": "Login Step 1 Response - New Device",
+                "description": "Response when login is from a new device (requires email confirmation)",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "example": "Confirmation email sent. Link is valid for 3 hours."
+                    },
+                    "requires_confirmation": {
+                        "type": "boolean",
+                        "example": true
+                    }
+                },
+                "type": "object"
+            },
+            "LoginStep2Response": {
+                "title": "Login Step 2 Response - Known Device",
+                "description": "Immediate login response for known devices",
+                "properties": {
+                    "access_token": {
+                        "description": "JWT access token",
+                        "type": "string"
+                    },
+                    "token_type": {
+                        "type": "string",
+                        "example": "bearer"
+                    },
+                    "expires_in": {
+                        "type": "integer",
+                        "example": 3600
+                    },
+                    "user": {
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "email": {
+                                "type": "string",
+                                "format": "email"
+                            },
+                            "uin": {
+                                "type": "string"
+                            },
+                            "username": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "requires_confirmation": {
+                        "type": "boolean",
+                        "example": false
+                    }
+                },
+                "type": "object"
+            },
+            "ConfirmLoginResponse": {
+                "title": "Confirm Login Response",
+                "description": "Response after email confirmation",
+                "properties": {
+                    "access_token": {
+                        "type": "string"
+                    },
+                    "token_type": {
+                        "type": "string",
+                        "example": "bearer"
+                    },
+                    "expires_in": {
+                        "type": "integer",
+                        "example": 3600
+                    }
+                },
+                "type": "object"
+            },
+            "UserProfileResponse": {
+                "title": "User Profile",
+                "description": "Complete user profile information",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email"
+                    },
+                    "uin": {
+                        "description": "8-digit unique identifier",
+                        "type": "string"
+                    },
+                    "username": {
+                        "description": "Custom username (3-20 chars, latin only)",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "description": "Current online status",
+                        "type": "string",
+                        "enum": [
+                            "online",
+                            "offline"
+                        ]
+                    },
+                    "online_status": {
+                        "description": "Selected status mood",
+                        "type": "string",
+                        "enum": [
+                            "online",
+                            "chatty",
+                            "angry",
+                            "depressed",
+                            "home",
+                            "work",
+                            "eating",
+                            "away",
+                            "unavailable",
+                            "busy",
+                            "do_not_disturb"
+                        ]
+                    },
+                    "custom_status": {
+                        "description": "User custom status text with emoji support",
+                        "type": "string",
+                        "maxLength": 50,
+                        "nullable": true
+                    },
+                    "last_seen_at": {
+                        "description": "Last online timestamp",
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "locale": {
+                        "description": "User interface language",
+                        "type": "string",
+                        "example": "ru"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "SearchUserResponse": {
+                "title": "Search User Result",
+                "description": "User search result by UIN or username",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uin": {
+                        "type": "string"
+                    },
+                    "username": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "online",
+                            "offline"
+                        ]
+                    },
+                    "online_status": {
+                        "type": "string"
+                    },
+                    "custom_status": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "last_seen_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "ChatResponse": {
+                "title": "Chat",
+                "description": "Chat object response",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "private",
+                            "group",
+                            "favorites"
+                        ]
+                    },
+                    "name": {
+                        "description": "Group chat name or null for private",
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "creator_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                    },
+                    "users": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/UserProfileResponse"
+                        }
+                    },
+                    "last_message": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/MessageResponse"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "unread_count": {
+                        "description": "Unread messages count",
+                        "type": "integer"
+                    },
+                    "is_muted": {
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "MessageResponse": {
+                "title": "Message",
+                "description": "Decrypted message object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "chat_id": {
+                        "type": "integer"
+                    },
+                    "sender": {
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "uin": {
+                                "type": "string"
+                            },
+                            "username": {
+                                "type": "string",
+                                "nullable": true
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "content": {
+                        "description": "Decrypted message text",
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "text",
+                            "image",
+                            "voice",
+                            "video",
+                            "file"
+                        ]
+                    },
+                    "attachments": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AttachmentResponse"
+                        }
+                    },
+                    "is_read": {
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "AttachmentResponse": {
+                "title": "Attachment",
+                "description": "File attachment",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "message_id": {
+                        "type": "integer"
+                    },
+                    "file_path": {
+                        "type": "string"
+                    },
+                    "mime_type": {
+                        "type": "string",
+                        "example": "image/jpeg"
+                    },
+                    "size": {
+                        "description": "File size in bytes",
+                        "type": "integer"
+                    },
+                    "name": {
+                        "description": "Original filename",
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "CallResponse": {
+                "title": "Call",
+                "description": "WebRTC call object",
+                "properties": {
+                    "call_uuid": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "chat_id": {
+                        "type": "integer"
+                    },
+                    "caller": {
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "callee": {
+                        "properties": {
+                            "id": {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            "name": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "audio",
+                            "video"
+                        ]
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "pending",
+                            "ringing",
+                            "active",
+                            "ended",
+                            "missed",
+                            "declined",
+                            "failed"
+                        ]
+                    },
+                    "duration": {
+                        "description": "Call duration in seconds",
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "started_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "answered_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "ended_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "StatusResponse": {
+                "title": "Generic Status Response",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "example": "success"
+                    },
+                    "message": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "MessageResponse_v2": {
+                "title": "Message Response v2",
+                "description": "Complete message response with metadata",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "chat_id": {
+                        "type": "integer"
+                    },
+                    "sender": {
+                        "$ref": "#/components/schemas/UserProfileResponse"
+                    },
+                    "content": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "text",
+                            "image",
+                            "voice",
+                            "video",
+                            "file"
+                        ]
+                    },
+                    "attachments": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AttachmentResponse"
+                        }
+                    },
+                    "read_by": {
+                        "description": "List of users who read this message",
+                        "type": "array",
+                        "items": {
+                            "properties": {
+                                "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "read_at": {
+                                    "type": "string",
+                                    "format": "date-time"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "responses": {
+            "200_OK": {
+                "description": "Success. Request completed successfully.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/StatusResponse"
+                        }
+                    }
+                }
+            },
+            "201_Created": {
+                "description": "Created. Resource successfully created.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "id": {
+                                    "description": "HTTP Status Codes and Common Responses",
+                                    "type": "integer",
+                                    "example": 1
+                                },
+                                "status": {
+                                    "type": "string",
+                                    "example": "created"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "400_BadRequest": {
+                "description": "Bad Request. Invalid request syntax or parameters.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Invalid request parameters"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "401_Unauthorized": {
+                "description": "Unauthorized. Missing or invalid JWT token. User must login first.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "example": "Unauthenticated."
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "403_Forbidden": {
+                "description": "Forbidden. User authenticated but lacks permission for this resource.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Access denied"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "404_NotFound": {
+                "description": "Not Found. Resource does not exist.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Resource not found"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "409_Conflict": {
+                "description": "Conflict. Request conflicts with current resource state.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Resource state conflict"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "413_PayloadTooLarge": {
+                "description": "Payload Too Large. File or request body exceeds maximum size.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "File exceeds maximum size"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "422_UnprocessableEntity": {
+                "description": "Unprocessable Entity. Validation failed for request data.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "$ref": "#/components/schemas/ValidationError"
+                        }
+                    }
+                }
+            },
+            "429_TooManyRequests": {
+                "description": "Too Many Requests. Rate limit exceeded. Wait before retrying.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Rate limit exceeded"
+                                },
+                                "retry_after": {
+                                    "description": "Seconds to wait",
+                                    "type": "integer",
+                                    "example": 60
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "500_InternalServerError": {
+                "description": "Internal Server Error. Unexpected server error.",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "properties": {
+                                "error": {
+                                    "type": "string",
+                                    "example": "Internal server error"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "401": {
+                "description": "Unauthenticated. Missing or invalid JWT token"
+            },
+            "403": {
+                "description": "Access denied. User does not have permission to access this resource"
+            },
+            "404": {
+                "description": "Resource not found"
+            },
+            "422": {
+                "description": "Validation error. Invalid request data"
+            },
+            "429": {
+                "description": "Too many requests. Rate limit exceeded"
+            },
+            "500": {
+                "description": "Internal server error"
             }
         },
         "securitySchemes": {
@@ -1132,18 +4066,58 @@
     },
     "tags": [
         {
+            "name": "Attachments",
+            "description": "File attachment management and download",
+            "externalDocs": {
+                "description": "File Management Documentation",
+                "url": "https://github.com/Heruvim6w/QMS-api#attachments"
+            }
+        },
+        {
             "name": "Authentication",
-            "description": "API Endpoints for User Authentication"
+            "description": "User authentication and registration endpoints",
+            "externalDocs": {
+                "description": "Authentication Flow Documentation",
+                "url": "https://github.com/Heruvim6w/QMS-api#authentication"
+            }
+        },
+        {
+            "name": "Chats",
+            "description": "Chat management (private, group, favorites)",
+            "externalDocs": {
+                "description": "Chat Management Documentation",
+                "url": "https://github.com/Heruvim6w/QMS-api#chat-management"
+            }
         },
         {
             "name": "Messages",
-            "description": "API Endpoints for Messages"
+            "description": "Message sending, receiving, and encryption",
+            "externalDocs": {
+                "description": "Message Documentation",
+                "url": "https://github.com/Heruvim6w/QMS-api#messages"
+            }
+        },
+        {
+            "name": "Users",
+            "description": "User profile management and search",
+            "externalDocs": {
+                "description": "User Management Documentation",
+                "url": "https://github.com/Heruvim6w/QMS-api#user-management"
+            }
         },
         {
             "name": "WebRTC",
-            "description": "API Endpoints for WebRTC Calls"
+            "description": "Audio and video call management",
+            "externalDocs": {
+                "description": "WebRTC Calls Documentation",
+                "url": "https://github.com/Heruvim6w/QMS-api#webrtc-calls"
+            }
         }
     ],
+    "externalDocs": {
+        "description": "QMS API GitHub Repository",
+        "url": "https://github.com/Heruvim6w/QMS-api"
+    },
     "security": [
         {
             "bearerAuth": []

@@ -20,7 +20,7 @@ use Symfony\Component\HttpFoundation\Response;
 /**
  * @OA\Tag(
  *     name="Users",
- *     description="API Endpoints for User Management"
+ *     description="User profile management, status management, session management, and user search"
  * )
  */
 class UserProfileController extends Controller
@@ -28,17 +28,19 @@ class UserProfileController extends Controller
     /**
      * @OA\Get(
      *     path="/api/v1/users/profile",
+     *     operationId="getProfile",
      *     summary="Get current user profile",
+     *     description="Retrieve the complete profile of the authenticated user including personal data, UIN, username, status, and created date.",
      *     tags={"Users"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
-     *         description="User profile",
-     *         @OA\JsonContent(ref="#/components/schemas/User")
+     *         description="User profile data",
+     *         @OA\JsonContent(ref="#/components/schemas/UserProfileResponse")
      *     ),
      *     @OA\Response(
      *         response=401,
-     *         description="Unauthorized"
+     *         description="Unauthenticated"
      *     )
      * )
      */
@@ -60,13 +62,17 @@ class UserProfileController extends Controller
     /**
      * @OA\Post(
      *     path="/api/v1/users/username",
-     *     summary="Set or update username",
+     *     operationId="setUsername",
+     *     summary="Set or update custom username",
+     *     description="Create or change a custom unique username (like in Telegram). Username must be 3-20 characters, Latin letters, digits, underscore, and dash only. Can be changed anytime. UIN remains unchanged.",
      *     tags={"Users"},
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
+     *         description="New username",
      *         @OA\JsonContent(
-     *             @OA\Property(property="username", type="string", example="john_doe")
+     *             required={"username"},
+     *             @OA\Property(property="username", type="string", minLength=3, maxLength=20, pattern="^[a-zA-Z0-9_-]+$", example="john_doe")
      *         )
      *     ),
      *     @OA\Response(
@@ -81,16 +87,12 @@ class UserProfileController extends Controller
      *         response=400,
      *         description="Invalid username format",
      *         @OA\JsonContent(
-     *             @OA\Property(property="error", type="string")
+     *             @OA\Property(property="error", type="string", example="Username must contain 3-20 characters (letters, digits, underscore, dash)")
      *         )
      *     ),
      *     @OA\Response(
      *         response=422,
-     *         description="Validation error",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string"),
-     *             @OA\Property(property="errors", type="object")
-     *         )
+     *         description="Validation error or username already taken"
      *     )
      * )
      */
@@ -112,36 +114,36 @@ class UserProfileController extends Controller
     /**
      * @OA\Get(
      *     path="/api/v1/users/search",
+     *     operationId="searchUser",
      *     summary="Search user by UIN or username",
+     *     description="Search for a user by their 8-digit UIN or custom username. Can be used to find users for adding to contacts or group chats. Returns basic user profile information.",
      *     tags={"Users"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="query",
      *         in="query",
      *         required=true,
-     *         description="UIN (8 digits) or username to search",
-     *         @OA\Schema(type="string")
+     *         description="Search query - either UIN (8 digits) or username (3-20 chars, latin only)",
+     *         @OA\Schema(type="string", minLength=3, example="12345678")
      *     ),
      *     @OA\Response(
      *         response=200,
      *         description="User found",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="id", type="string", format="uuid"),
-     *             @OA\Property(property="name", type="string"),
-     *             @OA\Property(property="uin", type="string"),
-     *             @OA\Property(property="username", type="string", nullable=true)
-     *         )
+     *         @OA\JsonContent(ref="#/components/schemas/SearchUserResponse")
      *     ),
      *     @OA\Response(
      *         response=400,
-     *         description="Invalid search query",
+     *         description="Invalid search query format",
      *         @OA\JsonContent(
-     *             @OA\Property(property="error", type="string")
+     *             @OA\Property(property="error", type="string", example="Invalid search query")
      *         )
      *     ),
      *     @OA\Response(
      *         response=404,
-     *         description="User not found"
+     *         description="User not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="error", type="string", example="User not found")
+     *         )
      *     )
      * )
      */
@@ -170,29 +172,26 @@ class UserProfileController extends Controller
     /**
      * @OA\Get(
      *     path="/api/v1/users/{identifier}",
-     *     summary="Get user by UIN or username",
+     *     operationId="getUserByIdentifier",
+     *     summary="Get user profile by UIN or username",
+     *     description="Retrieve detailed user profile information using their UIN (8-digit identifier) or custom username. Returns public profile information including status and last seen time.",
      *     tags={"Users"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="identifier",
      *         in="path",
      *         required=true,
-     *         description="User UIN (8 digits) or username",
-     *         @OA\Schema(type="string")
+     *         description="User identifier - either UIN (8 digits) or username (3-20 chars)",
+     *         @OA\Schema(type="string", example="john_doe")
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="User profile",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="id", type="string", format="uuid"),
-     *             @OA\Property(property="name", type="string"),
-     *             @OA\Property(property="uin", type="string"),
-     *             @OA\Property(property="username", type="string", nullable=true)
-     *         )
+     *         description="User profile data",
+     *         @OA\JsonContent(ref="#/components/schemas/SearchUserResponse")
      *     ),
      *     @OA\Response(
      *         response=404,
-     *         description="User not found"
+     *         description="User not found with the given identifier"
      *     )
      * )
      */
@@ -218,20 +217,23 @@ class UserProfileController extends Controller
     /**
      * @OA\Get(
      *     path="/api/v1/sessions",
+     *     operationId="getSessions",
      *     summary="Get all active sessions for current user",
+     *     description="Retrieve a list of all currently active sessions (confirmed login devices). Each session contains device info, confirmation date, and expiration date. Helps user track and manage their connected devices.",
      *     tags={"Users"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
-     *         description="List of active sessions",
+     *         description="List of active sessions across all devices",
      *         @OA\JsonContent(
      *             type="array",
      *             @OA\Items(
-     *                 @OA\Property(property="id", type="integer"),
-     *                 @OA\Property(property="device_name", type="string"),
-     *                 @OA\Property(property="ip_address", type="string"),
-     *                 @OA\Property(property="confirmed_at", type="string", format="date-time"),
-     *                 @OA\Property(property="expires_at", type="string", format="date-time")
+     *                 type="object",
+     *                 @OA\Property(property="id", type="integer", description="Session ID"),
+     *                 @OA\Property(property="device_name", type="string", example="iPhone 13", description="User-friendly device name"),
+     *                 @OA\Property(property="ip_address", type="string", format="ipv4", example="192.168.1.1", description="IP address where device logged in"),
+     *                 @OA\Property(property="confirmed_at", type="string", format="date-time", description="When this device was confirmed"),
+     *                 @OA\Property(property="expires_at", type="string", format="date-time", description="When this session expires")
      *             )
      *         )
      *     )
@@ -259,23 +261,28 @@ class UserProfileController extends Controller
     /**
      * @OA\Delete(
      *     path="/api/v1/sessions/{sessionId}",
-     *     summary="End a session (logout from device)",
+     *     operationId="endSession",
+     *     summary="End a specific session (logout from device)",
+     *     description="Terminate a specific session and logout from that device. Other active sessions remain unaffected. The session will no longer be able to use their JWT tokens.",
      *     tags={"Users"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
      *         name="sessionId",
      *         in="path",
      *         required=true,
-     *         description="Session ID",
-     *         @OA\Schema(type="integer")
+     *         description="Unique session identifier to terminate",
+     *         @OA\Schema(type="integer", example=42)
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Session ended successfully"
+     *         description="Session successfully terminated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="Session ended")
+     *         )
      *     ),
      *     @OA\Response(
      *         response=404,
-     *         description="Session not found"
+     *         description="Session not found or does not belong to current user"
      *     )
      * )
      */
@@ -299,25 +306,30 @@ class UserProfileController extends Controller
     /**
      * @OA\Post(
      *     path="/api/v1/users/status",
-     *     summary="Set user online status",
+     *     operationId="setStatus",
+     *     summary="Set user online status and custom status text",
+     *     description="Update the user's online status (mood) and optional custom status text. User can only select offline status indirectly (via inactivity). Custom status supports emojis and has a max of 50 characters. Status is displayed to friends in their contact list.",
      *     tags={"Users"},
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
+     *         description="Status information to set",
      *         @OA\JsonContent(
      *             required={"online_status"},
      *             @OA\Property(
      *                 property="online_status",
      *                 type="string",
      *                 enum={"online", "chatty", "angry", "depressed", "home", "work", "eating", "away", "unavailable", "busy", "do_not_disturb"},
-     *                 example="chatty"
+     *                 example="chatty",
+     *                 description="Selected mood/status"
      *             ),
      *             @OA\Property(
      *                 property="custom_status",
      *                 type="string",
-     *                 description="Custom status text (max 50 characters, supports emoji)",
+     *                 description="Optional custom status text (max 50 characters, supports emoji and 😀)",
      *                 example="На встрече 🎯",
-     *                 nullable=true
+     *                 nullable=true,
+     *                 maxLength=50
      *             )
      *         )
      *     ),
@@ -326,13 +338,13 @@ class UserProfileController extends Controller
      *         description="Status updated successfully",
      *         @OA\JsonContent(
      *             @OA\Property(property="status", type="string", example="success"),
-     *             @OA\Property(property="online_status", type="string", example="chatty"),
-     *             @OA\Property(property="display_status", type="string", example="Готов поболтать - На встрече 🎯")
+     *             @OA\Property(property="online_status", type="string", example="chatty", description="Set online status"),
+     *             @OA\Property(property="display_status", type="string", example="Готов поболтать - На встрече 🎯", description="Combined display string with localization")
      *         )
      *     ),
      *     @OA\Response(
      *         response=422,
-     *         description="Validation error"
+     *         description="Validation error (invalid status, custom status too long, etc)"
      *     )
      * )
      */
@@ -360,18 +372,20 @@ class UserProfileController extends Controller
     /**
      * @OA\Get(
      *     path="/api/v1/users/status/available",
-     *     summary="Get available online statuses",
+     *     operationId="getAvailableStatuses",
+     *     summary="Get list of available online statuses",
+     *     description="Retrieve list of all available online statuses (moods) that user can select from. Includes both localized display names and status keys for client-side usage.",
      *     tags={"Users"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
-     *         description="List of available statuses",
+     *         description="List of available online statuses with localized names",
      *         @OA\JsonContent(
-     *             type="object",
      *             @OA\Property(
      *                 property="statuses",
      *                 type="object",
-     *                 example={"online": "Онлайн", "chatty": "Готов поболтать", "angry": "Злой"}
+     *                 description="Key-value pairs of status key and localized display name",
+     *                 additionalProperties=@OA\Property(type="string")
      *             )
      *         )
      *     )
@@ -389,7 +403,9 @@ class UserProfileController extends Controller
     /**
      * @OA\Get(
      *     path="/api/v1/users/{identifier}/status",
+     *     operationId="getUserStatus",
      *     summary="Get user status (for friends/contacts list)",
+     *     description="Retrieve the current status of a user, including whether they are online and their selected status mood. If offline, shows time of last seen. Used for displaying user status in contacts list.",
      *     tags={"Users"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Parameter(
@@ -397,7 +413,7 @@ class UserProfileController extends Controller
      *         in="path",
      *         required=true,
      *         description="User UIN (8 digits) or username",
-     *         @OA\Schema(type="string")
+     *         @OA\Schema(type="string", example="john_doe")
      *     ),
      *     @OA\Response(
      *         response=200,
@@ -406,10 +422,10 @@ class UserProfileController extends Controller
      *             @OA\Property(property="id", type="string", format="uuid"),
      *             @OA\Property(property="name", type="string"),
      *             @OA\Property(property="uin", type="string"),
-     *             @OA\Property(property="is_online", type="boolean"),
-     *             @OA\Property(property="status", type="string", example="Готов поболтать"),
-     *             @OA\Property(property="status_key", type="string", example="chatty"),
-     *             @OA\Property(property="last_seen", type="string", nullable=true, example="3 hours ago")
+     *             @OA\Property(property="is_online", type="boolean", description="true if user is online, false if offline"),
+     *             @OA\Property(property="status", type="string", example="Готов поболтать", description="Localized status name"),
+     *             @OA\Property(property="status_key", type="string", example="chatty", description="Status key for client-side use"),
+     *             @OA\Property(property="last_seen", type="string", nullable=true, example="3 hours ago", description="Human-readable last seen time (only if offline)")
      *         )
      *     ),
      *     @OA\Response(
@@ -443,17 +459,19 @@ class UserProfileController extends Controller
     /**
      * @OA\Get(
      *     path="/api/v1/languages",
+     *     operationId="getLanguages",
      *     summary="Get list of supported languages",
+     *     description="Retrieve all supported languages/locales with their display names and localized status names. Used for language selection UI and status display.",
      *     tags={"Users"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
-     *         description="List of supported languages",
+     *         description="List of supported languages and status names in each language",
      *         @OA\JsonContent(
-     *             @OA\Property(property="supported_locales", type="array", items={"type": "string"}, example={"en", "ru", "de"}),
-     *             @OA\Property(property="current_locale", type="string", example="en"),
-     *             @OA\Property(property="language_names", type="object", example={"en": "English", "ru": "Русский", "de": "Deutsch"}),
-     *             @OA\Property(property="status_names", type="object", example={"online": "Online", "chatty": "Chatty", "angry": "Angry"})
+     *             @OA\Property(property="supported_locales", type="array", items={"type": "string"}, example={"en", "ru", "de"}, description="Available language codes"),
+     *             @OA\Property(property="current_locale", type="string", example="en", description="Current user's language setting"),
+     *             @OA\Property(property="language_names", type="object", example={"en": "English", "ru": "Русский", "de": "Deutsch"}, description="Language names in their native language"),
+     *             @OA\Property(property="status_names", type="object", example={"online": "Online", "chatty": "Chatty", "angry": "Angry"}, description="Status names in user's current language")
      *         )
      *     )
      * )
@@ -473,14 +491,17 @@ class UserProfileController extends Controller
     /**
      * @OA\Put(
      *     path="/api/v1/users/locale",
+     *     operationId="updateLocale",
      *     summary="Update user preferred language",
+     *     description="Change the user's interface language preference. Language selection persists across sessions. Affects status display and all UI text. Should match system locale auto-detection where possible.",
      *     tags={"Users"},
      *     security={{"bearerAuth":{}}},
      *     @OA\RequestBody(
      *         required=true,
+     *         description="New language locale",
      *         @OA\JsonContent(
      *             required={"locale"},
-     *             @OA\Property(property="locale", type="string", enum={"en", "ru", "de"}, example="ru")
+     *             @OA\Property(property="locale", type="string", enum={"en", "ru", "de"}, example="ru", description="Language code (2-letter ISO 639-1)")
      *         )
      *     ),
      *     @OA\Response(
@@ -489,16 +510,13 @@ class UserProfileController extends Controller
      *         @OA\JsonContent(
      *             @OA\Property(property="status", type="string", example="success"),
      *             @OA\Property(property="locale", type="string", example="ru"),
-     *             @OA\Property(property="language_name", type="string", example="Русский")
+     *             @OA\Property(property="language_name", type="string", example="Русский", description="Display name of selected language")
      *         )
      *     ),
      *     @OA\Response(
      *         response=422,
-     *         description="Validation error",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string"),
-     *             @OA\Property(property="errors", type="object")
-     *         )
+     *         description="Validation error (unsupported language)",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
      *     )
      * )
      */

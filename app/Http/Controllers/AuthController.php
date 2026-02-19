@@ -18,7 +18,7 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 /**
  * @OA\Tag(
  *     name="Authentication",
- *     description="API Endpoints for User Authentication"
+ *     description="User registration, login, and token management endpoints. Implements two-factor authentication via email for new devices."
  * )
  */
 class AuthController extends Controller
@@ -26,35 +26,34 @@ class AuthController extends Controller
     /**
      * @OA\Post(
      *     path="/api/v1/register",
-     *     summary="Register a new user",
+     *     operationId="register",
+     *     summary="Register a new user account",
+     *     description="Create a new user account with email and password. User automatically receives a unique UIN (8-digit identifier) and can optionally set a custom username later. RSA key pair is generated for end-to-end encryption.",
      *     tags={"Authentication"},
      *     @OA\RequestBody(
      *         required=true,
+     *         description="User registration data",
      *         @OA\JsonContent(
      *             required={"name", "email", "password", "password_confirmation"},
-     *             @OA\Property(property="name", type="string", example="John Doe"),
-     *             @OA\Property(property="email", type="string", format="email", example="john@example.com"),
-     *             @OA\Property(property="password", type="string", format="password", example="password"),
-     *             @OA\Property(property="password_confirmation", type="string", format="password", example="password")
+     *             @OA\Property(property="name", type="string", minLength=2, maxLength=255, example="John Doe", description="User full name"),
+     *             @OA\Property(property="email", type="string", format="email", example="john@example.com", description="Valid email address (must be unique)"),
+     *             @OA\Property(property="password", type="string", format="password", minLength=8, example="SecurePass123!", description="Password (min 8 chars, must include uppercase, lowercase, digit)"),
+     *             @OA\Property(property="password_confirmation", type="string", format="password", example="SecurePass123!", description="Password confirmation (must match password)")
      *         )
      *     ),
      *     @OA\Response(
      *         response=201,
-     *         description="User registered successfully",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="user", ref="#/components/schemas/User"),
-     *             @OA\Property(property="access_token", type="string", example="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."),
-     *             @OA\Property(property="token_type", type="string", example="bearer"),
-     *             @OA\Property(property="expires_in", type="integer", example=3600)
-     *         )
+     *         description="User registered successfully. JWT token issued for immediate access.",
+     *         @OA\JsonContent(ref="#/components/schemas/RegisterResponse")
      *     ),
      *     @OA\Response(
      *         response=422,
      *         description="Validation error",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="The given data was invalid."),
-     *             @OA\Property(property="errors", type="object", example={"email": {"The email has already been taken."}})
-     *         )
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
+     *     ),
+     *     @OA\Response(
+     *         response=500,
+     *         description="Server error (e.g., encryption key generation failed)"
      *     )
      * )
      */
@@ -95,38 +94,41 @@ class AuthController extends Controller
     /**
      * @OA\Post(
      *     path="/api/v1/login",
-     *     summary="Authenticate user - Step 1 (Send confirmation email)",
+     *     operationId="login",
+     *     summary="Authenticate user - Step 1 (Initiate login)",
+     *     description="Start the login process. For new devices, sends a confirmation email with a link valid for 3 hours. For known devices, returns JWT token immediately. Users can login with either email or UIN.",
      *     tags={"Authentication"},
      *     @OA\RequestBody(
      *         required=true,
+     *         description="Login credentials",
      *         @OA\JsonContent(
      *             required={"login", "password"},
-     *             @OA\Property(property="login", type="string", description="Email or UIN", example="john@example.com"),
-     *             @OA\Property(property="password", type="string", format="password", example="password"),
-     *             @OA\Property(property="device_name", type="string", example="iPhone", nullable=true)
+     *             @OA\Property(property="login", type="string", example="john@example.com", description="Email address or UIN (8 digits)"),
+     *             @OA\Property(property="password", type="string", format="password", example="SecurePass123!", description="User password"),
+     *             @OA\Property(property="device_name", type="string", example="iPhone 13", nullable=true, description="Device name (optional, for tracking)")
      *         )
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Check your email for confirmation link",
+     *         description="Check your email for confirmation link (new device) or token issued immediately (known device)",
      *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Confirmation email sent. Link is valid for 3 hours."),
-     *             @OA\Property(property="requires_confirmation", type="boolean", example=true)
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=400,
-     *         description="Login on known device - token issued immediately",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="access_token", type="string"),
-     *             @OA\Property(property="token_type", type="string", example="bearer"),
-     *             @OA\Property(property="expires_in", type="integer"),
-     *             @OA\Property(property="requires_confirmation", type="boolean", example=false)
+     *             oneOf={
+     *                 @OA\Schema(ref="#/components/schemas/LoginStep1Response"),
+     *                 @OA\Schema(ref="#/components/schemas/LoginStep2Response")
+     *             }
      *         )
      *     ),
      *     @OA\Response(
      *         response=401,
-     *         description="Invalid credentials"
+     *         description="Invalid credentials (wrong email/UIN or password)",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="error", type="string", example="Invalid credentials")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=422,
+     *         description="Validation error",
+     *         @OA\JsonContent(ref="#/components/schemas/ValidationError")
      *     )
      * )
      */
@@ -190,27 +192,29 @@ class AuthController extends Controller
     /**
      * @OA\Post(
      *     path="/api/v1/login/confirm",
+     *     operationId="confirmLogin",
      *     summary="Confirm login - Step 2 (Verify email token)",
+     *     description="Verify the confirmation token received via email. After successful verification, JWT token is issued. Token must be confirmed within 3 hours or it expires.",
      *     tags={"Authentication"},
      *     @OA\RequestBody(
      *         required=true,
+     *         description="Confirmation token from email",
      *         @OA\JsonContent(
      *             required={"token"},
-     *             @OA\Property(property="token", type="string", example="random_token_from_email")
+     *             @OA\Property(property="token", type="string", example="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...", description="Token received in confirmation email")
      *         )
      *     ),
      *     @OA\Response(
      *         response=200,
-     *         description="Login confirmed, JWT token issued",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="access_token", type="string"),
-     *             @OA\Property(property="token_type", type="string", example="bearer"),
-     *             @OA\Property(property="expires_in", type="integer")
-     *         )
+     *         description="Login confirmed successfully. JWT token issued.",
+     *         @OA\JsonContent(ref="#/components/schemas/ConfirmLoginResponse")
      *     ),
      *     @OA\Response(
      *         response=400,
-     *         description="Token is invalid or expired"
+     *         description="Token is invalid or expired (expired after 3 hours)",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="error", type="string", example="Invalid or expired token")
+     *         )
      *     )
      * )
      */
@@ -238,18 +242,37 @@ class AuthController extends Controller
     /**
      * @OA\Get(
      *     path="/api/v1/login/confirm/{token}",
-     *     summary="Confirm login via link (web browser)",
+     *     operationId="confirmLoginWeb",
+     *     summary="Confirm login via web link (browser)",
+     *     description="Verification endpoint for web-based confirmation link from email. Can redirect to mobile app or return token directly. Primarily used for browser/web clients.",
      *     tags={"Authentication"},
      *     @OA\Parameter(
      *         name="token",
      *         in="path",
      *         required=true,
      *         description="Confirmation token from email",
-     *         @OA\Schema(type="string")
+     *         @OA\Schema(type="string", format="uuid")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Login confirmed. Redirect to mobile app or return token.",
+     *         @OA\JsonContent(ref="#/components/schemas/ConfirmLoginResponse")
      *     ),
      *     @OA\Response(
      *         response=302,
-     *         description="Redirect to app with token in URL"
+     *         description="Redirect to mobile app with token parameter",
+     *         @OA\Header(
+     *             header="Location",
+     *             description="Redirect URL with token parameter",
+     *             @OA\Schema(type="string", format="uri")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=400,
+     *         description="Token is invalid or expired",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="error", type="string")
+     *         )
      *     )
      * )
      */
@@ -277,7 +300,9 @@ class AuthController extends Controller
     /**
      * @OA\Post(
      *     path="/api/v1/logout",
-     *     summary="Log the user out (Invalidate the token)",
+     *     operationId="logout",
+     *     summary="Logout and invalidate JWT token",
+     *     description="Invalidate the current JWT token and end the session. Existing sessions on other devices remain valid. Must be called before discarding the token.",
      *     tags={"Authentication"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Response(
@@ -289,10 +314,7 @@ class AuthController extends Controller
      *     ),
      *     @OA\Response(
      *         response=401,
-     *         description="Unauthenticated",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Unauthenticated.")
-     *         )
+     *         description="Unauthenticated (no valid token provided)"
      *     )
      * )
      */
@@ -306,24 +328,19 @@ class AuthController extends Controller
     /**
      * @OA\Post(
      *     path="/api/v1/refresh",
-     *     summary="Refresh a JWT token",
+     *     operationId="refresh",
+     *     summary="Refresh JWT token",
+     *     description="Extend the current session by issuing a new JWT token. Call this when token is about to expire (check expires_in value). Old token becomes invalid immediately.",
      *     tags={"Authentication"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
      *         description="Token refreshed successfully",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="access_token", type="string", example="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."),
-     *             @OA\Property(property="token_type", type="string", example="bearer"),
-     *             @OA\Property(property="expires_in", type="integer", example=3600)
-     *         )
+     *         @OA\JsonContent(ref="#/components/schemas/ConfirmLoginResponse")
      *     ),
      *     @OA\Response(
      *         response=401,
-     *         description="Unauthenticated",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Unauthenticated.")
-     *         )
+     *         description="Token is invalid or expired and cannot be refreshed"
      *     )
      * )
      */
@@ -335,20 +352,19 @@ class AuthController extends Controller
     /**
      * @OA\Get(
      *     path="/api/v1/me",
-     *     summary="Get the authenticated User",
+     *     operationId="me",
+     *     summary="Get the authenticated user profile",
+     *     description="Retrieve the complete profile information of the authenticated user, including personal data, status, and settings.",
      *     tags={"Authentication"},
      *     security={{"bearerAuth":{}}},
      *     @OA\Response(
      *         response=200,
-     *         description="User details",
-     *         @OA\JsonContent(ref="#/components/schemas/User")
+     *         description="Current user details",
+     *         @OA\JsonContent(ref="#/components/schemas/UserProfileResponse")
      *     ),
      *     @OA\Response(
      *         response=401,
-     *         description="Unauthenticated",
-     *         @OA\JsonContent(
-     *             @OA\Property(property="message", type="string", example="Unauthenticated.")
-     *         )
+     *         description="Unauthenticated (no valid token provided)"
      *     )
      * )
      */
