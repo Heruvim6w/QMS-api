@@ -46,7 +46,7 @@ class AttachmentFactory extends Factory
      */
     public function image(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'mime_type' => fake()->randomElement(['image/jpeg', 'image/png', 'image/gif']),
             'name' => fake()->word() . '.jpg',
             'size' => fake()->numberBetween(10240, 5242880), // 10KB to 5MB
@@ -58,7 +58,7 @@ class AttachmentFactory extends Factory
      */
     public function pdf(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'mime_type' => 'application/pdf',
             'name' => fake()->word() . '.pdf',
             'size' => fake()->numberBetween(51200, 10485760), // 50KB to 10MB
@@ -70,7 +70,7 @@ class AttachmentFactory extends Factory
      */
     public function video(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'mime_type' => 'video/mp4',
             'name' => fake()->word() . '.mp4',
             'size' => fake()->numberBetween(1048576, 104857600), // 1MB to 100MB
@@ -82,7 +82,7 @@ class AttachmentFactory extends Factory
      */
     public function audio(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'mime_type' => 'audio/mpeg',
             'name' => fake()->word() . '.mp3',
             'size' => fake()->numberBetween(1048576, 52428800), // 1MB to 50MB

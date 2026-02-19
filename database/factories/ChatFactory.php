@@ -30,7 +30,7 @@ class ChatFactory extends Factory
      */
     public function private(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'type' => Chat::TYPE_PRIVATE,
             'name' => null,
         ]);
@@ -41,7 +41,7 @@ class ChatFactory extends Factory
      */
     public function group(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'type' => Chat::TYPE_GROUP,
             'name' => fake()->sentence(2),
         ]);
@@ -52,7 +52,7 @@ class ChatFactory extends Factory
      */
     public function favorites(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'type' => Chat::TYPE_FAVORITES,
             'name' => null,
         ]);

@@ -40,7 +40,7 @@ class MessageFactory extends Factory
      */
     public function text(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'type' => Message::TYPE_TEXT,
         ]);
     }
@@ -50,7 +50,7 @@ class MessageFactory extends Factory
      */
     public function image(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'type' => Message::TYPE_IMAGE,
         ]);
     }
@@ -60,7 +60,7 @@ class MessageFactory extends Factory
      */
     public function voice(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'type' => Message::TYPE_VOICE,
         ]);
     }
@@ -70,7 +70,7 @@ class MessageFactory extends Factory
      */
     public function video(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'type' => Message::TYPE_VIDEO,
         ]);
     }
@@ -80,7 +80,7 @@ class MessageFactory extends Factory
      */
     public function file(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'type' => Message::TYPE_FILE,
         ]);
     }
@@ -90,7 +90,7 @@ class MessageFactory extends Factory
      */
     public function read(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'read_at' => now(),
         ]);
     }

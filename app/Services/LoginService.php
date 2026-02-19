@@ -20,11 +20,12 @@ class LoginService
      * Отправить письмо с ссылкой подтверждения
      */
     public function createLoginToken(
-        User $user,
-        string $deviceName,
+        User    $user,
+        string  $deviceName,
         ?string $ipAddress = null,
         ?string $userAgent = null
-    ): LoginToken {
+    ): LoginToken
+    {
         // Удаляем истекшие токены
         LoginToken::deleteExpired();
 
@@ -64,9 +65,7 @@ class LoginService
         $loginToken->confirm();
 
         // Генерируем JWT токен
-        $jwtToken = JWTAuth::fromUser($loginToken->user);
-
-        return $jwtToken;
+        return JWTAuth::fromUser($loginToken->user);
     }
 
     /**

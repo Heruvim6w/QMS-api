@@ -34,7 +34,7 @@ class MessageReadStatusFactory extends Factory
      */
     public function read(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'delivered_at' => $attributes['delivered_at'],
             'read_at' => $attributes['delivered_at']->modify('+' . fake()->numberBetween(1, 3600) . ' seconds'),
         ]);
@@ -45,7 +45,7 @@ class MessageReadStatusFactory extends Factory
      */
     public function delivered(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'read_at' => null,
         ]);
     }
@@ -55,7 +55,7 @@ class MessageReadStatusFactory extends Factory
      */
     public function undelivered(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'delivered_at' => null,
             'read_at' => null,
         ]);

@@ -5,7 +5,6 @@ namespace Database\Factories;
 use App\Models\Call;
 use App\Models\Chat;
 use App\Models\User;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -44,7 +43,7 @@ class CallFactory extends Factory
      */
     public function audio(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'type' => Call::TYPE_AUDIO,
         ]);
     }
@@ -54,7 +53,7 @@ class CallFactory extends Factory
      */
     public function video(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'type' => Call::TYPE_VIDEO,
         ]);
     }
@@ -64,7 +63,7 @@ class CallFactory extends Factory
      */
     public function completed(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'status' => Call::STATUS_ENDED,
             'answered_at' => $attributes['started_at']->copy()->addSeconds(2),
             'ended_at' => $attributes['started_at']->copy()->addSeconds(fake()->numberBetween(10, 300)),
@@ -80,7 +79,7 @@ class CallFactory extends Factory
      */
     public function missed(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'status' => Call::STATUS_MISSED,
             'answered_at' => null,
             'ended_at' => $attributes['started_at']->copy()->addSeconds(30),
@@ -93,7 +92,7 @@ class CallFactory extends Factory
      */
     public function declined(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'status' => Call::STATUS_DECLINED,
             'answered_at' => null,
             'ended_at' => $attributes['started_at']->copy()->addSeconds(3),

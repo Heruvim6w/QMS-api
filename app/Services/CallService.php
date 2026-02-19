@@ -17,7 +17,9 @@ class CallService
 {
     public function __construct(
         private readonly ChatService $chatService
-    ) {}
+    )
+    {
+    }
 
     /**
      * Инициировать звонок

@@ -29,8 +29,8 @@ class MessageReadStatusSeeder extends Seeder
                 MessageReadStatus::factory()
                     ->when(
                         fake()->boolean(70),
-                        fn ($factory) => $factory->read(),
-                        fn ($factory) => $factory->delivered()
+                        fn($factory) => $factory->read(),
+                        fn($factory) => $factory->delivered()
                     )
                     ->create([
                         'message_id' => $message->id,

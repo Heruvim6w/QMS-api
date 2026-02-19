@@ -21,10 +21,12 @@ class LoginConfirmationMail extends Mailable
      * Create a new message instance.
      */
     public function __construct(
-        public User $user,
+        public User       $user,
         public LoginToken $loginToken,
-        public string $deviceName,
-    ) {}
+        public string     $deviceName,
+    )
+    {
+    }
 
     /**
      * Get the message envelope.

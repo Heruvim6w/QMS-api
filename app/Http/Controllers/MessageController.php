@@ -29,8 +29,10 @@ class MessageController extends Controller
 {
     public function __construct(
         protected EncryptionService $encryptionService,
-        protected ChatService $chatService
-    ) {}
+        protected ChatService       $chatService
+    )
+    {
+    }
 
     /**
      * @OA\Post(

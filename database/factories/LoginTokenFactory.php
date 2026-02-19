@@ -36,7 +36,7 @@ class LoginTokenFactory extends Factory
      */
     public function confirmed(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'is_confirmed' => true,
             'confirmed_at' => now(),
         ]);
@@ -47,7 +47,7 @@ class LoginTokenFactory extends Factory
      */
     public function expired(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'expires_at' => now()->subHours(1),
             'is_confirmed' => false,
         ]);
@@ -58,7 +58,7 @@ class LoginTokenFactory extends Factory
      */
     public function expiredAndConfirmed(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'is_confirmed' => true,
             'confirmed_at' => now()->subDays(2),
             'expires_at' => now()->subHours(1),

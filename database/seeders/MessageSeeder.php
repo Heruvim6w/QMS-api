@@ -60,8 +60,8 @@ class MessageSeeder extends Seeder
                             ])
                             ->when(
                                 fake()->boolean(70),
-                                fn ($factory) => $factory->read(),
-                                fn ($factory) => $factory->delivered()
+                                fn($factory) => $factory->read(),
+                                fn($factory) => $factory->delivered()
                             )
                             ->create();
                     }

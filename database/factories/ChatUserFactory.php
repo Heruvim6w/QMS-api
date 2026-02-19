@@ -35,7 +35,7 @@ class ChatUserFactory extends Factory
      */
     public function muted(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'is_muted' => true,
         ]);
     }
@@ -45,7 +45,7 @@ class ChatUserFactory extends Factory
      */
     public function inactive(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'is_active' => false,
         ]);
     }
@@ -55,7 +55,7 @@ class ChatUserFactory extends Factory
      */
     public function recentlyJoined(): static
     {
-        return $this->state(fn (array $attributes) => [
+        return $this->state(fn(array $attributes) => [
             'joined_at' => now()->subDays(fake()->numberBetween(1, 7)),
         ]);
     }
