@@ -8,10 +8,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 use OpenApi\Annotations as OA;
 use Tymon\JWTAuth\Contracts\JWTSubject;
-use Illuminate\Support\Str;
 
 /**
  * @OA\Schema(
@@ -20,6 +20,7 @@ use Illuminate\Support\Str;
  *     title="User",
  *     description="User model with encryption keys",
  *     required={"name", "email", "password"},
+ *
  *     @OA\Property(
  *         property="id",
  *         type="string",
@@ -106,27 +107,38 @@ use Illuminate\Support\Str;
  */
 class User extends Authenticatable implements JWTSubject
 {
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * Константы для статусов пользователя
      */
     public const STATUS_ONLINE = 'online';
+
     public const STATUS_OFFLINE = 'offline';
 
     /**
      * Константы для онлайн-статусов
      */
     public const ONLINE_STATUS_ONLINE = 'online';
+
     public const ONLINE_STATUS_CHATTY = 'chatty';
+
     public const ONLINE_STATUS_ANGRY = 'angry';
+
     public const ONLINE_STATUS_DEPRESSED = 'depressed';
+
     public const ONLINE_STATUS_HOME = 'home';
+
     public const ONLINE_STATUS_WORK = 'work';
+
     public const ONLINE_STATUS_EATING = 'eating';
+
     public const ONLINE_STATUS_AWAY = 'away';
+
     public const ONLINE_STATUS_UNAVAILABLE = 'unavailable';
+
     public const ONLINE_STATUS_BUSY = 'busy';
+
     public const ONLINE_STATUS_DO_NOT_DISTURB = 'do_not_disturb';
 
     /**
@@ -214,7 +226,7 @@ class User extends Authenticatable implements JWTSubject
     public static function generateUIN(): string
     {
         do {
-            $uin = str_pad((string)random_int(10000000, 99999999), 8, '0', STR_PAD_LEFT);
+            $uin = str_pad((string) random_int(10000000, 99999999), 8, '0', STR_PAD_LEFT);
         } while (self::where('uin', $uin)->exists());
 
         return $uin;
@@ -222,7 +234,8 @@ class User extends Authenticatable implements JWTSubject
 
     /**
      * Найти пользователя по UIN или username
-     * @param string $identifier - либо UIN (8 цифр), либо username
+     *
+     * @param  string  $identifier  - либо UIN (8 цифр), либо username
      */
     public static function findByIdentifier(string $identifier): ?self
     {
@@ -258,13 +271,13 @@ class User extends Authenticatable implements JWTSubject
     public function setOnlineStatus(string $onlineStatus, ?string $customStatus = null): void
     {
         // Проверяем, что это валидный статус
-        if (!in_array($onlineStatus, self::getAvailableStatuses())) {
+        if (! in_array($onlineStatus, self::getAvailableStatuses())) {
             throw new \InvalidArgumentException("Invalid online status: {$onlineStatus}");
         }
 
         // Проверяем кастомный статус (макс 50 символов)
         if ($customStatus && strlen($customStatus) > 50) {
-            throw new \InvalidArgumentException("Custom status cannot exceed 50 characters");
+            throw new \InvalidArgumentException('Custom status cannot exceed 50 characters');
         }
 
         $this->update([
@@ -325,7 +338,7 @@ class User extends Authenticatable implements JWTSubject
      */
     public function getLastSeenFormatted(): ?string
     {
-        if (!$this->last_seen_at) {
+        if (! $this->last_seen_at) {
             return null;
         }
 
@@ -390,9 +403,9 @@ class User extends Authenticatable implements JWTSubject
     public function generateKeyPair(): void
     {
         $config = [
-            "digest_alg" => "sha512",
-            "private_key_bits" => 4096,
-            "private_key_type" => OPENSSL_KEYTYPE_RSA,
+            'digest_alg' => 'sha512',
+            'private_key_bits' => 4096,
+            'private_key_type' => OPENSSL_KEYTYPE_RSA,
         ];
 
         $keyPair = openssl_pkey_new($config);
@@ -400,7 +413,7 @@ class User extends Authenticatable implements JWTSubject
         openssl_pkey_export($keyPair, $privateKey);
 
         $publicKey = openssl_pkey_get_details($keyPair);
-        $publicKey = $publicKey["key"];
+        $publicKey = $publicKey['key'];
 
         $this->public_key = $publicKey;
         $this->private_key = $privateKey;
@@ -408,8 +421,6 @@ class User extends Authenticatable implements JWTSubject
 
     /**
      * Get the identifier that will be stored in the subject claim of the JWT.
-     *
-     * @return mixed
      */
     public function getJWTIdentifier(): mixed
     {
@@ -418,8 +429,6 @@ class User extends Authenticatable implements JWTSubject
 
     /**
      * Return a key value array, containing any custom claims to be added to the JWT.
-     *
-     * @return array
      */
     public function getJWTCustomClaims(): array
     {

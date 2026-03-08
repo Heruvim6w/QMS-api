@@ -13,7 +13,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']); // Step 1: Send confirmation email
     Route::post('/login/confirm', [AuthController::class, 'confirmLogin']); // Step 2: Confirm with token (API)
-    Route::get('/login/confirm/{token}', [AuthController::class, 'confirmLoginWeb']); // Step 2: Confirm with token (Web link)
+    Route::get('/login/confirm/{token}', [AuthController::class, 'confirmLoginWeb'])->name('auth.confirm-login'); // Step 2: Confirm with token (Web link)
 
     // Protected routes
     Route::middleware('auth:api')->group(function () {

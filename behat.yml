@@ -1,0 +1,16 @@
+default:
+  suites:
+    default:
+      contexts:
+        - Tests\Features\AppContext
+      paths:
+        features: 'tests/features'
+
+  extensions:
+    Behat\MinkExtension:
+      base_url: 'http://localhost:8000'
+      sessions:
+        default:
+          symfony2: ~
+    Behat\Laravel5Extension: ~
+

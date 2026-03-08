@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -16,6 +17,7 @@ use OpenApi\Annotations as OA;
  *     type="object",
  *     title="Chat",
  *     description="Модель чата (личный, групповой, избранное)",
+ *
  *     @OA\Property(property="id", type="integer", example=1),
  *     @OA\Property(property="type", type="string", enum={"private", "group", "favorites"}, example="private"),
  *     @OA\Property(property="name", type="string", nullable=true, example="Рабочий чат"),
@@ -26,8 +28,12 @@ use OpenApi\Annotations as OA;
  */
 class Chat extends Model
 {
+    use HasFactory;
+
     public const TYPE_PRIVATE = 'private';
+
     public const TYPE_GROUP = 'group';
+
     public const TYPE_FAVORITES = 'favorites';
 
     protected $fillable = [

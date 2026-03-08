@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Chat;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class ChatSeeder extends Seeder
 {
@@ -17,22 +18,29 @@ class ChatSeeder extends Seeder
 
         // Создаём приватные чаты между пользователями
         for ($i = 0; $i < count($users) - 1; $i++) {
-            Chat::factory()
+            $chat = Chat::factory()
                 ->private()
                 ->create([
                     'creator_id' => $users[$i]->id,
-                ])
-                ->users()
-                ->attach([
-                    $users[$i]->id => [
-                        'joined_at' => now(),
-                        'is_active' => true,
-                    ],
-                    $users[$i + 1]->id => [
-                        'joined_at' => now()->addMinutes(5),
-                        'is_active' => true,
-                    ],
                 ]);
+
+            // Добавляем пользователей напрямую в таблицу
+            DB::table('chat_users')->insert([
+                [
+                    'chat_id' => $chat->id,
+                    'user_id' => $users[$i]->id,
+                    'is_muted' => false,
+                    'joined_at' => now(),
+                    'is_active' => true,
+                ],
+                [
+                    'chat_id' => $chat->id,
+                    'user_id' => $users[$i + 1]->id,
+                    'is_muted' => false,
+                    'joined_at' => now()->addMinutes(5),
+                    'is_active' => true,
+                ],
+            ]);
         }
 
         // Создаём групповые чаты
@@ -47,28 +55,34 @@ class ChatSeeder extends Seeder
             // Добавляем случайных участников в групповой чат
             $members = $users->shuffle()->slice(0, fake()->numberBetween(3, 6));
 
+            $insertData = [];
             foreach ($members as $member) {
-                $groupChat->users()->attach($member->id, [
+                $insertData[] = [
+                    'chat_id' => $groupChat->id,
+                    'user_id' => $member->id,
+                    'is_muted' => fake()->boolean(20),
                     'joined_at' => now()->subDays(fake()->numberBetween(1, 30)),
                     'is_active' => fake()->boolean(80),
-                    'is_muted' => fake()->boolean(20),
-                ]);
+                ];
             }
+            DB::table('chat_users')->insert($insertData);
         }
 
         // Создаём чаты "Избранное" для каждого пользователя
         foreach ($users as $user) {
-            Chat::factory()
+            $favoritesChat = Chat::factory()
                 ->favorites()
                 ->create([
                     'creator_id' => $user->id,
-                ])
-                ->users()
-                ->attach($user->id, [
-                    'joined_at' => now(),
-                    'is_active' => true,
                 ]);
+
+            DB::table('chat_users')->insert([
+                'chat_id' => $favoritesChat->id,
+                'user_id' => $user->id,
+                'is_muted' => false,
+                'joined_at' => now(),
+                'is_active' => true,
+            ]);
         }
     }
 }
-

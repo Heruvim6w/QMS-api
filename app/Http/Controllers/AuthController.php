@@ -222,20 +222,42 @@ class AuthController extends Controller
         $data = $request->validated();
         $loginService = new LoginService();
 
+        // Сначала найдем login token напрямую
+        $loginToken = \App\Models\LoginToken::where('token', $data['token'])->first();
+
+        if (!$loginToken || $loginToken->isExpired()) {
+            return response()->json(
+                ['error' => 'Invalid or expired token'],
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        // Подтверждаем и получаем JWT
         $jwtToken = $loginService->confirmLoginAndGetToken($data['token']);
 
         if (!$jwtToken) {
             return response()->json(
                 ['error' => 'Invalid or expired token'],
-                Response::HTTP_BAD_REQUEST
+                Response::HTTP_UNAUTHORIZED
             );
         }
 
-        return response()->json([
+        // Гарантированно загрузим пользователя
+        $user = $loginToken->user()->first();
+
+        $responseArray = [
             'access_token' => $jwtToken,
             'token_type' => 'bearer',
             'expires_in' => config('jwt.ttl') * 60,
-        ]);
+            'user' => $user ? [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'uin' => $user->uin,
+            ] : null,
+        ];
+
+        return response()->json($responseArray, Response::HTTP_OK);
     }
 
     /**

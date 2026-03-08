@@ -120,5 +120,14 @@ class LoginService
 
         return false;
     }
-}
 
+    /**
+     * Получить пользователя по токену подтверждения (если токен действителен)
+     */
+    public function getUserFromToken(string $token): ?User
+    {
+        $loginToken = LoginToken::findValidToken($token);
+
+        return $loginToken ? $loginToken->user : null;
+    }
+}

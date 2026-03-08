@@ -90,6 +90,26 @@ class AttachmentFactory extends Factory
     }
 
     /**
+     * Создать голосовое сообщение
+     */
+    public function voice(): static
+    {
+        return $this->audio(); // Используем тот же метод для голосовых сообщений
+    }
+
+    /**
+     * Создать файл
+     */
+    public function file(): static
+    {
+        return $this->state(fn(array $attributes) => [
+            'mime_type' => fake()->randomElement(['application/pdf', 'application/msword', 'text/plain']),
+            'name' => fake()->word() . '.' . fake()->randomElement(['pdf', 'doc', 'txt']),
+            'size' => fake()->numberBetween(1024, 10485760), // 1KB to 10MB
+        ]);
+    }
+
+    /**
      * Получить расширение файла из MIME типа
      */
     private function getExtensionFromMime(string $mimeType): string
@@ -108,4 +128,3 @@ class AttachmentFactory extends Factory
         return $extensions[$mimeType] ?? 'bin';
     }
 }
-

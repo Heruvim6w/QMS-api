@@ -11,6 +11,9 @@ return new class extends Migration {
      */
     public function up(): void
     {
+        // Получаем имя подключения БД
+        $connection = DB::connection()->getDriverName();
+
         // Создаём новую временную таблицу с UUID
         Schema::create('users_new', function (Blueprint $table) {
             $table->uuid('id')->primary();
@@ -25,8 +28,17 @@ return new class extends Migration {
         });
 
         // Копируем данные из старой таблицы в новую
-        DB::statement('INSERT INTO users_new (id, name, email, email_verified_at, password, remember_token, public_key, private_key, created_at, updated_at)
-                       SELECT id::text::uuid, name, email, email_verified_at, password, remember_token, public_key, private_key, created_at, updated_at FROM users');
+        // Для SQLite просто копируем id как есть (уже в нужном формате)
+        // Для других БД преобразуем в UUID
+        if ($connection === 'sqlite') {
+            // SQLite: просто копируем существующие id
+            DB::statement('INSERT INTO users_new (id, name, email, email_verified_at, password, remember_token, public_key, private_key, created_at, updated_at)
+                           SELECT id, name, email, email_verified_at, password, remember_token, public_key, private_key, created_at, updated_at FROM users');
+        } else {
+            // PostgreSQL и другие: преобразуем в UUID
+            DB::statement('INSERT INTO users_new (id, name, email, email_verified_at, password, remember_token, public_key, private_key, created_at, updated_at)
+                           SELECT id::text::uuid, name, email, email_verified_at, password, remember_token, public_key, private_key, created_at, updated_at FROM users');
+        }
 
         // Удаляем старую таблицу
         Schema::dropIfExists('users');
@@ -36,13 +48,20 @@ return new class extends Migration {
 
         // Обновляем sessions таблицу
         Schema::table('sessions', function (Blueprint $table) {
+            // Сначала удаляем индекс
+            $table->dropIndex('sessions_user_id_index');
+
+            // Потом удаляем foreign key
             $table->dropForeign(['user_id']);
+
+            // Потом удаляем старую колонку
             $table->dropColumn('user_id');
         });
 
+        // Добавляем новую UUID колонку
         Schema::table('sessions', function (Blueprint $table) {
-            $table->uuid('user_id')->nullable()->index();
-            $table->foreign('user_id')->references('id')->on('users')->nullableOnDelete();
+            $table->uuid('user_id')->nullable();
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
         });
     }
 
@@ -51,16 +70,27 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        // Обратная миграция будет сложной, поэтому оставляем минимальную
+        // Обратная миграция: удаляем UUID колонку user_id из sessions
         Schema::table('sessions', function (Blueprint $table) {
+            // Сначала удаляем индекс
+            $table->dropIndex('sessions_user_id_index');
+
+            // Потом удаляем foreign key
             $table->dropForeign(['user_id']);
+
+            // Потом удаляем колонку
             $table->dropColumn('user_id');
         });
 
+        // Восстанавливаем старую структуру sessions
         Schema::table('sessions', function (Blueprint $table) {
-            $table->foreignId('user_id')->nullable()->index();
-            $table->foreign('user_id')->references('id')->on('users');
+            $table->foreignId('user_id')->nullable();
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
         });
+
+        // Примечание: обратная миграция для users таблицы будет очень сложной
+        // и потребует конвертирования UUID обратно в integer ID.
+        // Рекомендуется не откатывать эту миграцию в production.
     }
 };
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
@@ -14,6 +15,8 @@ use Illuminate\Support\Str;
  */
 class LoginToken extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'user_id',
         'token',
@@ -61,7 +64,7 @@ class LoginToken extends Model
      */
     public function isConfirmed(): bool
     {
-        return $this->is_confirmed && !$this->isExpired();
+        return $this->is_confirmed && ! $this->isExpired();
     }
 
     /**
@@ -69,7 +72,7 @@ class LoginToken extends Model
      */
     public function confirm(): void
     {
-        if (!$this->isExpired()) {
+        if (! $this->isExpired()) {
             $this->update([
                 'is_confirmed' => true,
                 'confirmed_at' => now(),
@@ -84,7 +87,7 @@ class LoginToken extends Model
     {
         $loginToken = self::where('token', $token)->first();
 
-        if ($loginToken && !$loginToken->isExpired()) {
+        if ($loginToken && ! $loginToken->isExpired()) {
             return $loginToken;
         }
 
@@ -110,4 +113,3 @@ class LoginToken extends Model
         return self::where('expires_at', '<', now())->delete();
     }
 }
-

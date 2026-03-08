@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
@@ -15,6 +16,7 @@ use OpenApi\Annotations as OA;
  *     type="object",
  *     title="Call",
  *     description="Модель звонка (аудио/видео)",
+ *
  *     @OA\Property(property="id", type="integer", example=1),
  *     @OA\Property(property="call_uuid", type="string", format="uuid", example="550e8400-e29b-41d4-a716-446655440000"),
  *     @OA\Property(property="chat_id", type="integer", example=1),
@@ -30,15 +32,24 @@ use OpenApi\Annotations as OA;
  */
 class Call extends Model
 {
+    use HasFactory;
+
     public const TYPE_AUDIO = 'audio';
+
     public const TYPE_VIDEO = 'video';
 
     public const STATUS_PENDING = 'pending';
+
     public const STATUS_RINGING = 'ringing';
+
     public const STATUS_ACTIVE = 'active';
+
     public const STATUS_ENDED = 'ended';
+
     public const STATUS_MISSED = 'missed';
+
     public const STATUS_DECLINED = 'declined';
+
     public const STATUS_FAILED = 'failed';
 
     protected $fillable = [

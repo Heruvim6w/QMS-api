@@ -20,12 +20,16 @@ class ConfirmLoginRequest extends BaseJsonFormRequest
     /**
      * Get the validation rules that apply to the request.
      *
+     * Убираем строгую проверку размера токена, пусть контроллер обрабатывает несуществующие или истекшие токены.
+     * Это позволяет возвращать 401 для неподходящих токенов, как ожидают тесты.
+     *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
-            'token' => 'required|string|size:64',
+            // Раньше: 'token' => 'required|string|size:64',
+            'token' => 'required|string',
         ];
     }
 
@@ -40,4 +44,3 @@ class ConfirmLoginRequest extends BaseJsonFormRequest
         ];
     }
 }
-

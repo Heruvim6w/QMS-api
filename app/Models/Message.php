@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,6 +17,7 @@ use OpenApi\Annotations as OA;
  *     title="Message",
  *     description="Message model with end-to-end encryption",
  *     required={"sender_id", "chat_id", "encrypted_content", "iv", "type"},
+ *
  *     @OA\Property(
  *         property="id",
  *         type="integer",
@@ -84,10 +86,16 @@ use OpenApi\Annotations as OA;
  */
 class Message extends Model
 {
+    use HasFactory;
+
     public const TYPE_TEXT = 'text';
+
     public const TYPE_IMAGE = 'image';
+
     public const TYPE_VOICE = 'voice';
+
     public const TYPE_VIDEO = 'video';
+
     public const TYPE_FILE = 'file';
 
     protected $fillable = [
