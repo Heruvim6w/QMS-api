@@ -21,15 +21,18 @@ services:
         depends_on:
             - qms-db
             - qms-redis
+            - qms-mailpit
 
     qms-db:
         image: postgres:15-alpine
         container_name: qms-db
         restart: unless-stopped
+        env_file:
+            - .env
         environment:
-            POSTGRES_DB: qms_db
-            POSTGRES_USER: qms_user
-            POSTGRES_PASSWORD: qms_password
+            POSTGRES_DB: ${DB_DATABASE}
+            POSTGRES_USER: ${DB_USERNAME}
+            POSTGRES_PASSWORD: ${DB_PASSWORD}
         ports:
             - "5432:5432"
         volumes:
@@ -45,6 +48,16 @@ services:
             - "6379:6379"
         volumes:
             - qms_redis_data:/data
+        networks:
+            - qms-network
+
+    qms-mailpit:
+        image: axllent/mailpit:latest
+        container_name: qms-mailpit
+        restart: unless-stopped
+        ports:
+            - "8025:8025"   # Web UI — открывай http://localhost:8025
+            - "1025:1025"   # SMTP порт
         networks:
             - qms-network
 

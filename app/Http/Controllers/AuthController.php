@@ -7,10 +7,13 @@ namespace App\Http\Controllers;
 use App\Http\Requests\User\ConfirmLoginRequest;
 use App\Http\Requests\User\LoginRequest;
 use App\Http\Requests\User\RegisterRequest;
+use App\Mail\RegistrationConfirmationMail;
+use App\Models\LoginToken;
 use App\Models\User;
 use App\Services\LoginService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use OpenApi\Annotations as OA;
 use Symfony\Component\HttpFoundation\Response;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -71,10 +74,26 @@ class AuthController extends Controller
         $user->generateKeyPair();
         $user->save();
 
-        $token = JWTAuth::fromUser($user);
+        // Создаём токен подтверждения регистрации
+        $confirmationToken = LoginToken::create([
+            'user_id' => $user->id,
+            'token' => LoginToken::generateToken(),
+            'device_name' => 'Registration Confirmation',
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->header('User-Agent'),
+            'is_confirmed' => false,
+            'expires_at' => now()->addHours(24), // Действителен 24 часа для регистрации
+        ]);
+
+        // Отправляем письмо с ссылкой подтверждения
+        Mail::to($user->email)->send(new RegistrationConfirmationMail(
+            $user,
+            $confirmationToken,
+        ));
 
         return response()->json(
             [
+                'message' => 'Registration successful. Please check your email to confirm your account.',
                 'user' => [
                     'id' => $user->id,
                     'name' => $user->name,
@@ -82,9 +101,6 @@ class AuthController extends Controller
                     'uin' => $user->uin,
                     'username' => $user->username,
                 ],
-                'access_token' => $token,
-                'token_type' => 'bearer',
-                'expires_in' => config('jwt.ttl') * 60
             ],
             Response::HTTP_CREATED
         );
