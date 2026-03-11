@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Events\LoginConfirmed;
 use App\Http\Requests\User\ConfirmLoginRequest;
 use App\Http\Requests\User\LoginRequest;
 use App\Http\Requests\User\RegisterRequest;
-use App\Mail\RegistrationConfirmationMail;
 use App\Models\LoginToken;
 use App\Models\User;
 use App\Services\LoginService;
+use App\Services\RegistrationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use OpenApi\Annotations as OA;
 use Symfony\Component\HttpFoundation\Response;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -63,33 +63,14 @@ class AuthController extends Controller
     public function register(RegisterRequest $request): JsonResponse
     {
         $data = $request->validated();
+        $registrationService = new RegistrationService();
 
-        $user = User::query()
-            ->create([
-                'name' => $data['name'],
-                'email' => $data['email'],
-                'password' => Hash::make($data['password']),
-            ]);
-
-        $user->generateKeyPair();
-        $user->save();
-
-        // Создаём токен подтверждения регистрации
-        $confirmationToken = LoginToken::create([
-            'user_id' => $user->id,
-            'token' => LoginToken::generateToken(),
-            'device_name' => 'Registration Confirmation',
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->header('User-Agent'),
-            'is_confirmed' => false,
-            'expires_at' => now()->addHours(24), // Действителен 24 часа для регистрации
-        ]);
-
-        // Отправляем письмо с ссылкой подтверждения
-        Mail::to($user->email)->send(new RegistrationConfirmationMail(
-            $user,
-            $confirmationToken,
-        ));
+        // Сервис обрабатывает всю логику регистрации и генерирует событие
+        $user = $registrationService->register(
+            $data['name'],
+            $data['email'],
+            $data['password']
+        );
 
         return response()->json(
             [
@@ -260,6 +241,9 @@ class AuthController extends Controller
 
         // Гарантированно загрузим пользователя
         $user = $loginToken->user()->first();
+
+        // Генерируем событие подтверждения входа
+        event(new LoginConfirmed($user, $loginToken->device_name));
 
         $responseArray = [
             'access_token' => $jwtToken,

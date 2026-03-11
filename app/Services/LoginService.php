@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\LoginConfirmationRequested;
 use App\Mail\LoginConfirmationMail;
 use App\Models\LoginToken;
 use App\Models\User;
@@ -40,12 +41,8 @@ class LoginService
             'expires_at' => now()->addHours(3), // Действителен 3 часа
         ]);
 
-        // Отправляем письмо с ссылкой подтверждения
-        Mail::to($user->email)->send(new LoginConfirmationMail(
-            $user,
-            $loginToken,
-            $deviceName,
-        ));
+        // Генерируем событие - слушатель отправит письмо
+        event(new LoginConfirmationRequested($user, $loginToken, $deviceName));
 
         return $loginToken;
     }

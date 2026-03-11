@@ -2,53 +2,74 @@
 
 namespace Tests\Feature;
 
+use App\Mail\LoginConfirmationMail;
+use App\Mail\RegistrationConfirmationMail;
 use App\Models\LoginToken;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
 {
     use RefreshDatabase;
 
+    private const DEFAULT_PASSWORD = 'SecurePass123!';
+
     /**
-     * Test 1: Регистрация - проверка, что пользователь не может залогиниться без подтверждения почты
-     * (В этой системе при регистрации сразу выдается JWT токен, но нужно проверить логику)
+     * Test 1: Регистрация - проверка ответа и создания пользователя
      */
-    public function test_user_can_register_and_receive_jwt_token(): void
+    public function test_user_can_register_and_get_confirmation_message(): void
     {
-        $response = $this->postJson('/api/v1/register', [
-            'name' => 'John Doe',
-            'email' => 'john@example.com',
-            'password' => 'SecurePass123!',
-            'password_confirmation' => 'SecurePass123!',
-        ]);
+        Mail::fake();
+
+        $response = $this->registerUser();
 
         $response->assertStatus(201)
             ->assertJsonStructure([
+                'message',
                 'user' => ['id', 'name', 'email', 'uin', 'username'],
-                'access_token',
-                'token_type',
-                'expires_in'
-            ]);
+            ])
+            ->assertJsonMissingPath('access_token');
 
         $this->assertDatabaseHas('users', [
             'email' => 'john@example.com',
             'name' => 'John Doe',
         ]);
+
+        $user = User::where('email', 'john@example.com')->firstOrFail();
+        $this->assertNull($user->email_verified_at);
+
+        Mail::assertSent(RegistrationConfirmationMail::class, function ($mail) use ($user) {
+            return $mail->hasTo($user->email);
+        });
     }
 
     /**
-     * Test 2: Регистрация сохраняет в БД всю необходимую информацию и присваивает UIN
+     * Test 2: До подтверждения почты логин запрещен
+     */
+    public function test_user_cannot_login_before_email_confirmation(): void
+    {
+        $this->registerUser();
+
+        $response = $this->login('john@example.com', self::DEFAULT_PASSWORD);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'requires_confirmation' => true,
+            ])
+            ->assertJsonMissingPath('access_token');
+    }
+
+    /**
+     * Test 3: Регистрация сохраняет в БД всю необходимую информацию и присваивает UIN
      */
     public function test_user_registration_stores_all_required_data_and_generates_uin(): void
     {
-        $this->postJson('/api/v1/register', [
+        $this->registerUser([
             'name' => 'Jane Doe',
             'email' => 'jane@example.com',
-            'password' => 'SecurePass123!',
-            'password_confirmation' => 'SecurePass123!',
         ]);
 
         $user = User::where('email', 'jane@example.com')->first();
@@ -59,69 +80,42 @@ class AuthenticationTest extends TestCase
         $this->assertTrue(strlen($user->uin) === 8);
         $this->assertTrue(ctype_digit($user->uin));
         $this->assertNotNull($user->public_key);
-        $this->assertNull($user->username); // username должен быть NULL по умолчанию
+        $this->assertNull($user->username);
     }
 
     /**
-     * Test 3: Регистрация с невалидным email
+     * Test 4-7: Невалидные сценарии регистрации
+     *
+     * @dataProvider invalidRegistrationProvider
      */
-    public function test_registration_fails_with_invalid_email(): void
+    public function test_registration_validation_fails(array $overrides): void
     {
-        $response = $this->postJson('/api/v1/register', [
-            'name' => 'John Doe',
-            'email' => 'invalid-email',
-            'password' => 'SecurePass123!',
-            'password_confirmation' => 'SecurePass123!',
-        ]);
+        if (($overrides['precreate_duplicate'] ?? false) === true) {
+            User::factory()->create(['email' => 'john@example.com']);
+            unset($overrides['precreate_duplicate']);
+        }
 
+        $response = $this->registerUser($overrides);
         $response->assertStatus(422);
     }
 
-    /**
-     * Test 4: Регистрация с коротким паролем
-     */
-    public function test_registration_fails_with_short_password(): void
+    public static function invalidRegistrationProvider(): array
     {
-        $response = $this->postJson('/api/v1/register', [
-            'name' => 'John Doe',
-            'email' => 'john@example.com',
-            'password' => 'Short1!',
-            'password_confirmation' => 'Short1!',
-        ]);
-
-        $response->assertStatus(422);
-    }
-
-    /**
-     * Test 5: Регистрация с несовпадающими паролями
-     */
-    public function test_registration_fails_with_mismatched_passwords(): void
-    {
-        $response = $this->postJson('/api/v1/register', [
-            'name' => 'John Doe',
-            'email' => 'john@example.com',
-            'password' => 'SecurePass123!',
-            'password_confirmation' => 'DifferentPass123!',
-        ]);
-
-        $response->assertStatus(422);
-    }
-
-    /**
-     * Test 6: Регистрация с дублирующимся email
-     */
-    public function test_registration_fails_with_duplicate_email(): void
-    {
-        User::factory()->create(['email' => 'john@example.com']);
-
-        $response = $this->postJson('/api/v1/register', [
-            'name' => 'Another John',
-            'email' => 'john@example.com',
-            'password' => 'SecurePass123!',
-            'password_confirmation' => 'SecurePass123!',
-        ]);
-
-        $response->assertStatus(422);
+        return [
+            'invalid email' => [[
+                'email' => 'invalid-email',
+            ]],
+            'short password' => [[
+                'password' => 'Short1!',
+                'password_confirmation' => 'Short1!',
+            ]],
+            'mismatched passwords' => [[
+                'password_confirmation' => 'DifferentPass123!',
+            ]],
+            'duplicate email' => [[
+                'precreate_duplicate' => true,
+            ]],
+        ];
     }
 
     /**
@@ -133,12 +127,10 @@ class AuthenticationTest extends TestCase
 
         $user = User::factory()->create([
             'email' => 'john@example.com',
-            'password' => bcrypt('SecurePass123!'),
+            'password' => bcrypt(self::DEFAULT_PASSWORD),
         ]);
 
-        $response = $this->postJson('/api/v1/login', [
-            'login' => 'john@example.com',
-            'password' => 'SecurePass123!',
+        $response = $this->login('john@example.com', self::DEFAULT_PASSWORD, [
             'device_name' => 'iPhone 13',
         ]);
 
@@ -148,7 +140,7 @@ class AuthenticationTest extends TestCase
                 'message' => 'Confirmation email sent. Link is valid for 3 hours.',
             ]);
 
-        Mail::assertSent(\App\Mail\LoginConfirmationMail::class);
+        Mail::assertSent(LoginConfirmationMail::class);
 
         $this->assertDatabaseHas('login_tokens', [
             'user_id' => $user->id,
@@ -164,7 +156,7 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create([
             'email' => 'john@example.com',
-            'password' => bcrypt('SecurePass123!'),
+            'password' => bcrypt(self::DEFAULT_PASSWORD),
         ]);
 
         $loginToken = LoginToken::create([
@@ -178,7 +170,6 @@ class AuthenticationTest extends TestCase
         $response = $this->postJson('/api/v1/login/confirm', [
             'token' => $loginToken->token,
         ]);
-
 
         $response->assertStatus(200)
             ->assertJsonStructure([
@@ -235,7 +226,7 @@ class AuthenticationTest extends TestCase
 
         $user = User::factory()->create([
             'email' => 'john@example.com',
-            'password' => bcrypt('SecurePass123!'),
+            'password' => bcrypt(self::DEFAULT_PASSWORD),
         ]);
 
         // Первый логин - создаем подтвержденную сессию
@@ -255,7 +246,7 @@ class AuthenticationTest extends TestCase
         // Второй логин с тем же девайсом
         $response = $this->postJson('/api/v1/login', [
             'login' => 'john@example.com',
-            'password' => 'SecurePass123!',
+            'password' => self::DEFAULT_PASSWORD,
         ], [
             'User-Agent' => $userAgent,
             'REMOTE_ADDR' => $ipAddress, // Устанавливаем REMOTE_ADDR вместо X-Forwarded-For
@@ -275,7 +266,7 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create([
             'email' => 'john@example.com',
-            'password' => bcrypt('SecurePass123!'),
+            'password' => bcrypt(self::DEFAULT_PASSWORD),
         ]);
 
         // Создаем активную сессию
@@ -290,7 +281,7 @@ class AuthenticationTest extends TestCase
         // Логинимся с нового устройства
         $this->postJson('/api/v1/login', [
             'login' => 'john@example.com',
-            'password' => 'SecurePass123!',
+            'password' => self::DEFAULT_PASSWORD,
             'device_name' => 'Mobile',
         ]);
 
@@ -301,22 +292,55 @@ class AuthenticationTest extends TestCase
     }
 
     /**
-     * Test 13: Логин с неверными учетными данными
+     * Test 13: Логин с невалидными учетными данными
+     *
+     * @dataProvider loginInvalidCredentialsProvider
      */
-    public function test_login_with_invalid_credentials(): void
-    {
+    public function test_login_with_invalid_credentials(
+        string $login,
+        string $password,
+        int $expectedStatus,
+        array $expectedJson
+    ): void {
         User::factory()->create([
             'email' => 'john@example.com',
-            'password' => bcrypt('SecurePass123!'),
+            'password' => bcrypt(self::DEFAULT_PASSWORD),
         ]);
 
-        $response = $this->postJson('/api/v1/login', [
-            'login' => 'john@example.com',
-            'password' => 'WrongPassword123!',
-        ]);
+        $response = $this->login($login, $password);
 
-        $response->assertStatus(401)
-            ->assertJson(['error' => 'Invalid credentials']);
+        $response->assertStatus($expectedStatus)
+            ->assertJson($expectedJson);
+    }
+
+    public static function loginInvalidCredentialsProvider(): array
+    {
+        return [
+            'wrong password' => [
+                'john@example.com',
+                'WrongPassword123!',
+                401,
+                ['error' => 'Invalid credentials'],
+            ],
+            'unknown email' => [
+                'unknown@example.com',
+                self::DEFAULT_PASSWORD,
+                401,
+                ['error' => 'Invalid credentials'],
+            ],
+            'empty password' => [
+                'john@example.com',
+                '',
+                422,
+                ['message' => 'Validation failed'],
+            ],
+            'empty login' => [
+                '',
+                self::DEFAULT_PASSWORD,
+                422,
+                ['message' => 'Validation failed'],
+            ],
+        ];
     }
 
     /**
@@ -328,13 +352,11 @@ class AuthenticationTest extends TestCase
 
         $user = User::factory()->create([
             'email' => 'john@example.com',
-            'password' => bcrypt('SecurePass123!'),
+            'password' => bcrypt(self::DEFAULT_PASSWORD),
+            'email_verified_at' => now(),
         ]);
 
-        $response = $this->postJson('/api/v1/login', [
-            'login' => $user->uin,
-            'password' => 'SecurePass123!',
-        ]);
+        $response = $this->login($user->uin, self::DEFAULT_PASSWORD);
 
         $response->assertStatus(200)
             ->assertJsonStructure(['requires_confirmation', 'message']);
@@ -355,5 +377,27 @@ class AuthenticationTest extends TestCase
 
         $response->assertStatus(200);
     }
-}
 
+    private function registerUser(array $overrides = [])
+    {
+        return $this->postJson('/api/v1/register', $this->registrationPayload($overrides));
+    }
+
+    private function registrationPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'name' => 'John Doe',
+            'email' => 'john@example.com',
+            'password' => self::DEFAULT_PASSWORD,
+            'password_confirmation' => self::DEFAULT_PASSWORD,
+        ], $overrides);
+    }
+
+    private function login(string $login, string $password, array $overrides = [], array $headers = [])
+    {
+        return $this->postJson('/api/v1/login', array_merge([
+            'login' => $login,
+            'password' => $password,
+        ], $overrides), $headers);
+    }
+}
