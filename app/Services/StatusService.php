@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Events\UserPresenceChanged;
 use App\Models\User;
 
 /**
@@ -23,6 +24,9 @@ class StatusService
     public function setStatus(User $user, string $onlineStatus, ?string $customStatus = null): void
     {
         $user->setOnlineStatus($onlineStatus, $customStatus);
+
+        // Уведомляем подписчиков об изменении присутствия через WebSocket
+        event(new UserPresenceChanged($user));
     }
 
     /**

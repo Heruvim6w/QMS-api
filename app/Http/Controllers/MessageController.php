@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Events\MessageSent;
 use App\Http\Requests\Message\GetRequest;
 use App\Http\Requests\Message\SendRequest;
 use App\Http\Requests\Message\UploadFileRequest;
@@ -112,6 +113,9 @@ class MessageController extends Controller
             'iv' => $encryptedData['iv'],
             'type' => $data['type'] ?? Message::TYPE_TEXT,
         ]);
+
+        // Уведомляем участников чата через WebSocket (без зашифрованного контента)
+        event(new MessageSent($message));
 
         return response()->json(
             [

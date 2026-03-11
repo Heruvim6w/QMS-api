@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Events\CallStatusUpdated;
 use App\Http\Requests\WebRTC\AddIceCandidateRequest;
 use App\Http\Requests\WebRTC\AnswerCallRequest;
 use App\Http\Requests\WebRTC\InitiateCallRequest;
@@ -98,6 +99,9 @@ class WebRTCController extends Controller
             'started_at' => now(),
         ]);
 
+        // Уведомляем собеседника о входящем звонке через WebSocket
+        event(new CallStatusUpdated($call));
+
         return response()->json([
             'call_uuid' => $call->call_uuid,
             'chat_id' => $call->chat_id,
@@ -180,6 +184,9 @@ class WebRTCController extends Controller
         // Принимаем звонок
         $call->answer($data['sdp_answer']);
 
+        // Уведомляем звонящего через WebSocket (передаём SDP answer)
+        event(new CallStatusUpdated($call));
+
         return response()->json([
             'status' => $call->status,
             'call_uuid' => $call->call_uuid,
@@ -246,6 +253,9 @@ class WebRTCController extends Controller
         // Добавляем ICE кандидата
         $call->addIceCandidate($data['candidate']);
 
+        // Уведомляем второго участника через WebSocket
+        event(new CallStatusUpdated($call));
+
         return response()->json([
             'status' => 'candidate_added',
             'call_uuid' => $call->call_uuid,
@@ -299,6 +309,8 @@ class WebRTCController extends Controller
         }
 
         $call->decline();
+
+        event(new CallStatusUpdated($call));
 
         return response()->json(['status' => 'declined']);
     }
@@ -357,6 +369,8 @@ class WebRTCController extends Controller
 
         $reason = request()->input('reason', 'normal');
         $call->end($reason);
+
+        event(new CallStatusUpdated($call));
 
         return response()->json([
             'status' => $call->status,

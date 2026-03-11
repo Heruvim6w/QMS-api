@@ -1,0 +1,20 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Providers;
+
+use Illuminate\Support\Facades\Broadcast;
+use Illuminate\Support\ServiceProvider;
+
+class BroadcastServiceProvider extends ServiceProvider
+{
+    public function boot(): void
+    {
+        // Используем JWT guard вместо стандартного session/sanctum
+        Broadcast::routes(['middleware' => ['auth:api']]);
+
+        require base_path('routes/channels.php');
+    }
+}
+
