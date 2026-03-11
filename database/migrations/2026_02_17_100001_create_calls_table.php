@@ -14,8 +14,10 @@ return new class extends Migration {
             $table->id();
             $table->string('call_uuid')->unique(); // уникальный идентификатор звонка
             $table->foreignId('chat_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('caller_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('callee_id')->constrained('users')->cascadeOnDelete();
+            $table->uuid('caller_id');
+            $table->foreign('caller_id')->references('id')->on('users')->cascadeOnDelete();
+            $table->uuid('callee_id');
+            $table->foreign('callee_id')->references('id')->on('users')->cascadeOnDelete();
             $table->enum('type', ['audio', 'video'])->default('audio');
             $table->enum('status', ['pending', 'ringing', 'active', 'ended', 'missed', 'declined', 'failed'])
                 ->default('pending');

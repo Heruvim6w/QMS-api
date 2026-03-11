@@ -14,7 +14,8 @@ return new class extends Migration {
             $table->id();
             $table->enum('type', ['private', 'group', 'favorites']); // тип чата
             $table->string('name')->nullable(); // название для групповых чатов
-            $table->foreignId('creator_id')->nullable()->constrained('users'); // кто создал
+            $table->uuid('creator_id')->nullable();
+            $table->foreign('creator_id')->references('id')->on('users')->nullOnDelete();
             $table->timestamps();
 
             $table->index('type');
@@ -22,7 +23,8 @@ return new class extends Migration {
 
         Schema::create('chat_users', function (Blueprint $table) {
             $table->foreignId('chat_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->uuid('user_id');
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
             $table->boolean('is_muted')->default(false);
             $table->timestamp('joined_at')->nullable(); // когда присоединился
             $table->boolean('is_active')->default(true); // активен ли участник
@@ -35,6 +37,7 @@ return new class extends Migration {
      */
     public function down(): void
     {
+        Schema::dropIfExists('chat_users');
         Schema::dropIfExists('chats');
     }
 };

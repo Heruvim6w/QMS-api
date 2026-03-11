@@ -134,16 +134,22 @@ setup_testing_env() {
     print_info "Генерирование JWT secret..."
     php artisan jwt:secret --env=testing || true
 
-    print_info "Создание .env.testing файла..."
+    print_info "Проверка .env.testing файла..."
     if [ ! -f .env.testing ]; then
-        cp .env.testing .env.testing 2>/dev/null || echo "Файл .env.testing уже существует"
+        print_error ".env.testing не найден. Создайте его на основе .env.testing.example"
+        exit 1
     fi
 
-    print_info "Выполнение миграций для тестов (SQLite :memory:)..."
+    print_info "Создание тестовой БД qms_test (если не существует)..."
+    docker compose exec qms-db psql -U qms_user -d postgres -tc \
+        "SELECT 1 FROM pg_database WHERE datname='qms_test'" | grep -q 1 || \
+    docker compose exec qms-db psql -U qms_user -d postgres -c "CREATE DATABASE qms_test;"
+
+    print_info "Выполнение миграций для тестов (PostgreSQL qms_test)..."
     php artisan migrate:fresh --env=testing --force --no-interaction
 
     print_success "Тестовое окружение готово!"
-    print_info "Конфигурация: SQLite :memory: из .env.testing"
+    print_info "Конфигурация: PostgreSQL qms_test из .env.testing"
 }
 
 clean_tests() {

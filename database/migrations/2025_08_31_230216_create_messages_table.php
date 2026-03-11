@@ -12,8 +12,10 @@ return new class extends Migration {
     {
         Schema::create('messages', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('sender_id')->constrained('users');
-            $table->foreignId('receiver_id')->constrained('users');
+            $table->uuid('sender_id');
+            $table->foreign('sender_id')->references('id')->on('users')->cascadeOnDelete();
+            $table->uuid('receiver_id');
+            $table->foreign('receiver_id')->references('id')->on('users')->cascadeOnDelete();
             $table->text('encrypted_content');
             $table->string('encryption_key')->nullable();
             $table->string('iv');

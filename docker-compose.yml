@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
     qms-app:
         build:
@@ -16,13 +14,8 @@ services:
             - ./docker/supervisor/supervisord.conf:/etc/supervisord.conf
         ports:
             - "8000:8000"
-        environment:
-            - APP_NAME=QMS API
-            - DB_HOST=qms-db
-            - DB_DATABASE=qms_db
-            - DB_USERNAME=qms_user
-            - DB_PASSWORD=qms_password
-            - REDIS_HOST=qms-redis
+        env_file:
+            - .env
         networks:
             - qms-network
         depends_on:
@@ -64,3 +57,4 @@ volumes:
 networks:
     qms-network:
         driver: bridge
+        external: true

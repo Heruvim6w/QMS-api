@@ -13,7 +13,8 @@ return new class extends Migration {
         Schema::create('message_read_status', function (Blueprint $table) {
             $table->id();
             $table->foreignId('message_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->uuid('user_id');
+            $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
             $table->timestamp('read_at')->nullable();
             $table->timestamp('delivered_at')->nullable();
             $table->timestamps();
