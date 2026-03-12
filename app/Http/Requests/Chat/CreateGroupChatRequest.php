@@ -25,10 +25,9 @@ class CreateGroupChatRequest extends BaseJsonFormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255',
-            'user_ids' => 'required|array|min:1',
-            'user_ids.*' => 'required|integer|exists:users,id',
+            'name'       => ['required', 'string', 'max:255'],
+            'user_ids'   => ['required', 'array', 'min:1'],
+            'user_ids.*' => ['required', 'string', 'exists:users,id'],
         ];
     }
 }
-

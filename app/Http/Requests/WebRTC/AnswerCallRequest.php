@@ -25,8 +25,8 @@ class AnswerCallRequest extends BaseJsonFormRequest
     public function rules(): array
     {
         return [
-            'call_uuid' => 'required|string|exists:calls,call_uuid',
-            'sdp_answer' => 'required|string',
+            'call_uuid'  => ['required', 'string', 'exists:calls,call_uuid'],
+            'sdp_answer' => ['required', 'string'],
         ];
     }
 }

@@ -25,10 +25,10 @@ class InitiateCallRequest extends BaseJsonFormRequest
     public function rules(): array
     {
         return [
-            'chat_id' => 'required|integer|exists:chats,id',
-            'callee_id' => 'required|integer|exists:users,id',
-            'type' => 'required|in:audio,video',
-            'sdp_offer' => 'required|string',
+            'chat_id'   => ['required', 'integer', 'exists:chats,id'],
+            'callee_id' => ['required', 'string', 'exists:users,id'],
+            'type'      => ['required', 'in:audio,video'],
+            'sdp_offer' => ['required', 'string'],
         ];
     }
 }

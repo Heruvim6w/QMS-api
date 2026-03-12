@@ -25,10 +25,10 @@ class SendRequest extends BaseJsonFormRequest
     public function rules(): array
     {
         return [
-            'chat_id' => 'required_without:receiver_id|integer|exists:chats,id',
-            'receiver_id' => 'required_without:chat_id|integer|exists:users,id',
-            'content' => 'required|string',
-            'type' => 'sometimes|in:text,image,voice,video,file',
+            'chat_id'     => ['required_without:receiver_id', 'integer', 'exists:chats,id'],
+            'receiver_id' => ['required_without:chat_id', 'string', 'exists:users,id'],
+            'content'     => ['required', 'string'],
+            'type'        => ['sometimes', 'in:text,image,voice,video,file'],
         ];
     }
 }

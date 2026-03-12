@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOneThrough;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 use OpenApi\Annotations as OA;
@@ -220,16 +224,60 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
-     * Генерировать уникальный UIN (как в ICQ)
-     * Формат: 8-значное число
+     * Генерировать UIN без проверки exists().
+     * Уникальность обеспечивает UNIQUE-индекс в БД.
      */
     public static function generateUIN(): string
     {
-        do {
-            $uin = str_pad((string) random_int(10000000, 99999999), 8, '0', STR_PAD_LEFT);
-        } while (self::where('uin', $uin)->exists());
+        return (string) random_int(10000000, 99999999);
+    }
 
-        return $uin;
+    /**
+     * Максимум попыток генерации UIN перед ошибкой.
+     */
+    private const UIN_GENERATION_MAX_ATTEMPTS = 20;
+
+    /**
+     * Генерировать уникальный UIN (как в ICQ)
+     * Формат: 8-значное число
+     */
+    public static function createWithUniqueUin(array $attributes): self
+    {
+        for ($attempt = 1; $attempt <= self::UIN_GENERATION_MAX_ATTEMPTS; $attempt++) {
+            try {
+                return DB::transaction(function () use ($attributes) {
+                    $user = new self($attributes);
+
+                    if (empty($user->uin)) {
+                        $user->uin = self::generateUIN();
+                    }
+
+                    $user->save();
+
+                    return $user;
+                });
+            } catch (QueryException $e) {
+                if (self::isUniqueUinViolation($e) && empty($attributes['uin'])) {
+                    continue;
+                }
+
+                throw $e;
+            }
+        }
+
+        throw new \RuntimeException('Failed to generate unique UIN after maximum retry attempts.');
+    }
+
+    /**
+     * Определяет, что ошибка связана с нарушением UNIQUE по users.uin.
+     */
+    private static function isUniqueUinViolation(QueryException $e): bool
+    {
+        $sqlState = $e->errorInfo[0] ?? null;
+        $message = $e->getMessage();
+
+        return $sqlState === '23505'
+            && str_contains($message, 'users_uin_unique');
     }
 
     /**
@@ -266,6 +314,14 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
+     * Проверить, онлайн ли пользователь
+     */
+    public function isOnline(): bool
+    {
+        return $this->status === self::STATUS_ONLINE;
+    }
+
+    /**
      * Установить онлайн статус (когда пользователь онлайн)
      */
     public function setOnlineStatus(string $onlineStatus, ?string $customStatus = null): void
@@ -289,15 +345,15 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
-     * Установить пользователя онлайн (с дефолтным статусом)
+     * Получить отображаемый статус (с кастомным текстом если есть)
      */
-    public function setOnline(): void
+    public function getDisplayStatus(): string
     {
-        $this->update([
-            'status' => self::STATUS_ONLINE,
-            'online_status' => self::ONLINE_STATUS_ONLINE,
-            'last_seen_at' => now(),
-        ]);
+        if ($this->custom_status) {
+            return "{$this->getStatusName()} - {$this->custom_status}";
+        }
+
+        return $this->getStatusName();
     }
 
     /**
@@ -310,26 +366,6 @@ class User extends Authenticatable implements JWTSubject
             'status' => self::STATUS_OFFLINE,
             'last_seen_at' => now(),
         ]);
-    }
-
-    /**
-     * Проверить, онлайн ли пользователь
-     */
-    public function isOnline(): bool
-    {
-        return $this->status === self::STATUS_ONLINE;
-    }
-
-    /**
-     * Получить отображаемый статус (с кастомным текстом если есть)
-     */
-    public function getDisplayStatus(): string
-    {
-        if ($this->custom_status) {
-            return "{$this->getStatusName()} - {$this->custom_status}";
-        }
-
-        return $this->getStatusName();
     }
 
     /**
@@ -352,6 +388,55 @@ class User extends Authenticatable implements JWTSubject
     }
 
     /**
+     * Установить пользователя онлайн (с дефолтным статусом)
+     */
+    public function setOnline(): void
+    {
+        $this->update([
+            'status' => self::STATUS_ONLINE,
+            'online_status' => self::ONLINE_STATUS_ONLINE,
+            'last_seen_at' => now(),
+        ]);
+    }
+
+    /**
+     * Чат "Избранное" пользователя
+     */
+    public function favoritesChat(): HasOneThrough
+    {
+        return $this->hasOneThrough(
+            Chat::class,
+            ChatUser::class,
+            'user_id',
+            'id',
+            'id',
+            'chat_id'
+        )->where('chats.type', 'favorites');
+    }
+
+    /**
+     * Генерировать пару ключей RSA и сохранить в модель
+     */
+    public function generateKeyPair(): void
+    {
+        $config = [
+            'digest_alg' => 'sha512',
+            'private_key_bits' => 4096,
+            'private_key_type' => OPENSSL_KEYTYPE_RSA,
+        ];
+
+        $keyPair = openssl_pkey_new($config);
+
+        openssl_pkey_export($keyPair, $privateKey);
+
+        $publicKey = openssl_pkey_get_details($keyPair);
+        $publicKey = $publicKey['key'];
+
+        $this->public_key = $publicKey;
+        $this->private_key = $privateKey;
+    }
+
+    /**
      * Сообщения, отправленные пользователем
      */
     public function sentMessages(): HasMany
@@ -362,7 +447,7 @@ class User extends Authenticatable implements JWTSubject
     /**
      * Чаты, в которых участвует пользователь
      */
-    public function chats(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function chats(): BelongsToMany
     {
         return $this->belongsToMany(Chat::class, 'chat_users')
             ->withPivot(['is_muted', 'joined_at', 'is_active'])
@@ -383,40 +468,6 @@ class User extends Authenticatable implements JWTSubject
     public function incomingCalls(): HasMany
     {
         return $this->hasMany(Call::class, 'callee_id');
-    }
-
-    /**
-     * Чат "Избранное" пользователя
-     */
-    public function favoritesChat(): \Illuminate\Database\Eloquent\Relations\HasOneThrough
-    {
-        return $this->hasOneThrough(
-            Chat::class,
-            ChatUser::class,
-            'user_id',
-            'id',
-            'id',
-            'chat_id'
-        )->where('chats.type', 'favorites');
-    }
-
-    public function generateKeyPair(): void
-    {
-        $config = [
-            'digest_alg' => 'sha512',
-            'private_key_bits' => 4096,
-            'private_key_type' => OPENSSL_KEYTYPE_RSA,
-        ];
-
-        $keyPair = openssl_pkey_new($config);
-
-        openssl_pkey_export($keyPair, $privateKey);
-
-        $publicKey = openssl_pkey_get_details($keyPair);
-        $publicKey = $publicKey['key'];
-
-        $this->public_key = $publicKey;
-        $this->private_key = $privateKey;
     }
 
     /**

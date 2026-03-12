@@ -21,8 +21,8 @@ class RegistrationService
      */
     public function register(string $name, string $email, string $password): User
     {
-        // Создаём пользователя
-        $user = User::create([
+        // Создаём пользователя с гарантированно уникальным UIN
+        $user = User::createWithUniqueUin([
             'name' => $name,
             'email' => $email,
             'password' => Hash::make($password),

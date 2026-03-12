@@ -368,7 +368,7 @@ class ChatController extends Controller
      *     )
      * )
      */
-    public function removeUser(int $id, int $userId): JsonResponse
+    public function removeUser(int $id, string $userId): JsonResponse
     {
         /** @var User $user */
         $user = Auth::user();
@@ -447,8 +447,8 @@ class ChatController extends Controller
      *         name="userId",
      *         in="path",
      *         required=true,
-     *         description="User ID to create private chat with",
-     *         @OA\Schema(type="integer")
+     *         description="User ID (UUID) to create private chat with",
+     *         @OA\Schema(type="string", format="uuid", example="550e8400-e29b-41d4-a716-446655440001")
      *     ),
      *     @OA\Response(
      *         response=200,
@@ -460,8 +460,9 @@ class ChatController extends Controller
      *         description="User not found"
      *     )
      * )
+     * @throws \Throwable
      */
-    public function getOrCreatePrivateChat(int $userId): JsonResponse
+    public function getOrCreatePrivateChat(string $userId): JsonResponse
     {
         $receiver = User::findOrFail($userId);
 

@@ -53,7 +53,7 @@ class Chat extends Model
     {
         return $this->belongsToMany(User::class, 'chat_users')
             ->withPivot(['is_muted', 'joined_at', 'is_active'])
-            ->withTimestamps();
+            ;
     }
 
     /**
