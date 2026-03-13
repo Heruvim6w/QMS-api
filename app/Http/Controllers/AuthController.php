@@ -12,6 +12,7 @@ use App\Models\LoginToken;
 use App\Models\User;
 use App\Services\LoginService;
 use App\Services\RegistrationService;
+use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Jenssegers\Agent\Agent;
@@ -304,7 +305,7 @@ class AuthController extends Controller
      *     )
      * )
      */
-    public function confirmLoginWeb(string $token): JsonResponse
+    public function confirmLoginWeb(string $token): View|JsonResponse
     {
         $loginService = new LoginService();
         $jwtToken = $loginService->confirmLoginAndGetToken($token);
@@ -316,12 +317,11 @@ class AuthController extends Controller
             );
         }
 
-        // В реальности нужно перенаправить на мобильное приложение
-        // например: redirect(config('app.deeplink_url') . '?token=' . $jwtToken);
-        return response()->json([
-            'access_token' => $jwtToken,
-            'token_type' => 'bearer',
-            'expires_in' => config('jwt.ttl') * 60,
+        return view('auth.login-confirmed', [
+            'accessToken' => $jwtToken,
+            'tokenType'   => 'bearer',
+            'expiresIn'   => config('jwt.ttl') * 60,
+            'frontendUrl' => rtrim((string) config('app.frontend_url'), '/'),
         ]);
     }
 
