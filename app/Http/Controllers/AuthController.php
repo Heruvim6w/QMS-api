@@ -14,6 +14,7 @@ use App\Services\LoginService;
 use App\Services\RegistrationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
+use Jenssegers\Agent\Agent;
 use OpenApi\Annotations as OA;
 use Symfony\Component\HttpFoundation\Response;
 use Tymon\JWTAuth\Facades\JWTAuth;
@@ -26,6 +27,13 @@ use Tymon\JWTAuth\Facades\JWTAuth;
  */
 class AuthController extends Controller
 {
+    public Agent $agent;
+
+    public function __construct(Agent $agent)
+    {
+        $this->agent = $agent;
+    }
+
     /**
      * @OA\Post(
      *     path="/api/v1/register",
@@ -101,7 +109,6 @@ class AuthController extends Controller
      *             required={"login", "password"},
      *             @OA\Property(property="login", type="string", example="john@example.com", description="Email address or UIN (8 digits)"),
      *             @OA\Property(property="password", type="string", format="password", example="SecurePass123!", description="User password"),
-     *             @OA\Property(property="device_name", type="string", example="iPhone 13", nullable=true, description="Device name (optional, for tracking)")
      *         )
      *     ),
      *     @OA\Response(
@@ -145,7 +152,7 @@ class AuthController extends Controller
             );
         }
 
-        $deviceName = $data['device_name'] ?? 'Unknown Device';
+        $deviceName = $this->agent->device() ?? 'Unknown Device';
         $userAgent = request()->header('User-Agent');
         $ipAddress = request()->ip();
 
@@ -220,7 +227,7 @@ class AuthController extends Controller
         $loginService = new LoginService();
 
         // Сначала найдем login token напрямую
-        $loginToken = \App\Models\LoginToken::where('token', $data['token'])->first();
+        $loginToken = LoginToken::where('token', $data['token'])->first();
 
         if (!$loginToken || $loginToken->isExpired()) {
             return response()->json(

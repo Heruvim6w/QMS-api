@@ -28,7 +28,6 @@ class LoginRequest extends BaseJsonFormRequest
             // Можно авторизоваться по email или UIN (8-значное число)
             'login' => 'required|string|min:3',
             'password' => 'required|string|min:8|max:25',
-            'device_name' => 'sometimes|string|max:255', // Опциональное имя устройства
         ];
     }
 

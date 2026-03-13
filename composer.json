@@ -13,6 +13,7 @@
         "ext-pdo": "*",
         "darkaonline/l5-swagger": "^9.0",
         "guzzlehttp/guzzle": "^7.2",
+        "jenssegers/agent": "^2.6",
         "laravel/framework": "^12.0",
         "laravel/reverb": "^1.8",
         "laravel/sanctum": "^4.0",
