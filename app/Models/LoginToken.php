@@ -17,6 +17,8 @@ class LoginToken extends Model
 {
     use HasFactory;
 
+    public User $user;
+
     protected $fillable = [
         'user_id',
         'token',

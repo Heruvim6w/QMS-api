@@ -123,8 +123,6 @@ class LoginService
      */
     public function getUserFromToken(string $token): ?User
     {
-        $loginToken = LoginToken::findValidToken($token);
-
-        return $loginToken ? $loginToken->user : null;
+        return LoginToken::findValidToken($token)?->user;
     }
 }

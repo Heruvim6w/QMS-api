@@ -326,12 +326,6 @@
                                         "type": "string",
                                         "format": "password",
                                         "example": "SecurePass123!"
-                                    },
-                                    "device_name": {
-                                        "description": "Device name (optional, for tracking)",
-                                        "type": "string",
-                                        "example": "iPhone 13",
-                                        "nullable": true
                                     }
                                 },
                                 "type": "object"
@@ -1099,10 +1093,12 @@
                     {
                         "name": "userId",
                         "in": "path",
-                        "description": "User ID to create private chat with",
+                        "description": "User ID (UUID) to create private chat with",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "550e8400-e29b-41d4-a716-446655440001"
                         }
                     }
                 ],
