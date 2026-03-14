@@ -16,6 +16,10 @@ use Throwable;
 
 class ChatService
 {
+    public function __construct(
+        private readonly EncryptionService $encryptionService,
+    ) {}
+
     /**
      * Найти или создать личный чат между пользователями
      * @throws Throwable
@@ -106,16 +110,17 @@ class ChatService
     }
 
     /**
-     * Получить все чаты пользователя
+     * Получить все чаты пользователя.
+     * last_message для текстовых сообщений содержит расшифрованный content.
      */
     public function getUserChats(User|Authenticatable $user): Collection
     {
-        return Chat::query()
+        $chats = Chat::query()
             ->whereHas('users', function ($query) use ($user) {
                 $query->where('user_id', $user->id)
                     ->where('is_active', true);
             })
-            ->with(['lastMessage', 'users'])
+            ->with(['lastMessage.keys', 'users'])
             ->orderByDesc(
                 Chat::query()
                     ->join('messages', 'chats.id', '=', 'messages.chat_id')
@@ -125,6 +130,36 @@ class ChatService
                     ->limit(1)
             )
             ->get();
+
+        // Расшифровываем content только для текстовых сообщений — ключи уже
+        // загружены eager-load'ом, дополнительных запросов к БД нет.
+        foreach ($chats as $chat) {
+            $msg = $chat->lastMessage;
+            if (!$msg || $msg->type !== \App\Models\Message::TYPE_TEXT) {
+                continue;
+            }
+
+            try {
+                $encryptedKey = $msg->keys->firstWhere('user_id', $user->id)?->encrypted_key;
+                if ($encryptedKey === null) {
+                    continue;
+                }
+
+                $decrypted = $this->encryptionService->decryptForUser(
+                    $msg->encrypted_content,
+                    $encryptedKey,
+                    $msg->iv,
+                    $user->private_key,
+                );
+
+                // Добавляем виртуальное поле — в JSON будет отдаваться как "content"
+                $msg->setAttribute('content', $decrypted);
+            } catch (\Throwable) {
+                // Не удалось расшифровать — пропускаем, frontend покажет заглушку
+            }
+        }
+
+        return $chats;
     }
 
     /**
