@@ -11,6 +11,7 @@ use App\Http\Requests\Message\UploadFileRequest;
 use App\Models\Attachment;
 use App\Models\Chat;
 use App\Models\Message;
+use App\Models\MessageKey;
 use App\Models\User;
 use App\Services\ChatService;
 use App\Services\EncryptionService;
@@ -98,21 +99,33 @@ class MessageController extends Controller
             $chat = $this->chatService->findOrCreatePrivateChat($receiver);
         }
 
-        // Шифруем содержимое для каждого участника чата
-        // Для простоты шифруем ключом отправителя
-        $encryptedData = $this->encryptionService->encryptForUser(
-            $data['content'],
-            $sender->public_key
-        );
+        // Генерируем одноразовый AES-ключ и IV для сообщения
+        $sessionKey = $this->encryptionService->generateKey();
+        $iv = bin2hex(random_bytes(16));
+        $encryptedContent = $this->encryptionService->encrypt($data['content'], $sessionKey, $iv);
 
         $message = Message::query()->create([
-            'chat_id' => $chat->id,
-            'sender_id' => $sender->id,
-            'encrypted_content' => $encryptedData['encrypted_content'],
-            'encryption_key' => $encryptedData['encrypted_key'],
-            'iv' => $encryptedData['iv'],
-            'type' => $data['type'] ?? Message::TYPE_TEXT,
+            'chat_id'           => $chat->id,
+            'sender_id'         => $sender->id,
+            'encrypted_content' => $encryptedContent,
+            'encryption_key'    => null, // ключи хранятся в message_keys
+            'iv'                => $iv,
+            'type'              => $data['type'] ?? Message::TYPE_TEXT,
         ]);
+
+        // Шифруем AES-ключ сессии публичным ключом каждого активного участника чата
+        $participants = $chat->activeUsers()->get();
+        foreach ($participants as $participant) {
+            if (empty($participant->public_key)) {
+                continue;
+            }
+            openssl_public_encrypt(hex2bin($sessionKey), $encryptedKey, $participant->public_key);
+            MessageKey::query()->create([
+                'message_id'    => $message->id,
+                'user_id'       => $participant->id,
+                'encrypted_key' => bin2hex($encryptedKey),
+            ]);
+        }
 
         // Уведомляем участников чата через WebSocket (без зашифрованного контента)
         event(new MessageSent($message));
@@ -182,9 +195,18 @@ class MessageController extends Controller
         }
 
         try {
+            $encryptedKey = $message->getEncryptedKeyForUser($user->id);
+
+            if ($encryptedKey === null) {
+                return response()->json(
+                    ['error' => 'Encryption key not found for this user'],
+                    ResponseAlias::HTTP_FORBIDDEN
+                );
+            }
+
             $decryptedContent = $this->encryptionService->decryptForUser(
                 $message->encrypted_content,
-                $message->encryption_key,
+                $encryptedKey,
                 $message->iv,
                 $user->private_key
             );
@@ -204,7 +226,7 @@ class MessageController extends Controller
                 'created_at' => $message->created_at,
                 'is_read' => $message->isReadBy($user),
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json(
                 ['error' => 'Failed to decrypt message'],
                 ResponseAlias::HTTP_INTERNAL_SERVER_ERROR
@@ -279,16 +301,22 @@ class MessageController extends Controller
         }
 
         $messages = Message::where('chat_id', $chat->id)
-            ->with(['sender', 'attachments'])
+            ->with(['sender', 'attachments', 'keys'])
             ->orderBy('created_at', 'asc')
             ->get();
 
         $result = [];
         foreach ($messages as $message) {
             try {
+                $encryptedKey = $message->getEncryptedKeyForUser($user->id);
+
+                if ($encryptedKey === null) {
+                    continue;
+                }
+
                 $decryptedContent = $this->encryptionService->decryptForUser(
                     $message->encrypted_content,
-                    $message->encryption_key,
+                    $encryptedKey,
                     $message->iv,
                     $user->private_key
                 );
@@ -308,7 +336,7 @@ class MessageController extends Controller
                     'created_at' => $message->created_at,
                     'is_read' => $message->isReadBy($user),
                 ];
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 continue;
             }
         }

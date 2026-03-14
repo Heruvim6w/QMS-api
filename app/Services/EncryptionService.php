@@ -85,9 +85,9 @@ class EncryptionService
 
     public function decryptForUser(string $encryptedContent, string $encryptedKey, string $iv, string $privateKey): string
     {
-        openssl_private_decrypt(hex2bin($encryptedKey), $sessionKey, $privateKey);
+        $success = openssl_private_decrypt(hex2bin($encryptedKey), $sessionKey, $privateKey);
 
-        if ($sessionKey === false) {
+        if (!$success || $sessionKey === null) {
             throw new \RuntimeException('Failed to decrypt session key');
         }
 

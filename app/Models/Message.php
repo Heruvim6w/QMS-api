@@ -137,6 +137,22 @@ class Message extends Model
     }
 
     /**
+     * Зашифрованные ключи сессии для каждого участника
+     */
+    public function keys(): HasMany
+    {
+        return $this->hasMany(MessageKey::class);
+    }
+
+    /**
+     * Получить зашифрованный ключ сессии для конкретного пользователя
+     */
+    public function getEncryptedKeyForUser(string $userId): ?string
+    {
+        return $this->keys()->where('user_id', $userId)->value('encrypted_key');
+    }
+
+    /**
      * Статусы прочтения
      */
     public function readStatuses(): HasMany
