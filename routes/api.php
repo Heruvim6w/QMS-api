@@ -16,7 +16,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/login/confirm/{token}', [AuthController::class, 'confirmLoginWeb'])->name('auth.confirm-login'); // Step 2: Confirm with token (Web link)
 
     // Protected routes
-    Route::middleware('auth:api')->group(function () {
+    Route::middleware(['auth:api', \App\Http\Middleware\UpdateUserActivityStatus::class])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::post('/refresh', [AuthController::class, 'refresh']);
         Route::get('/me', [AuthController::class, 'me']);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Events\LoginConfirmed;
+use App\Events\UserPresenceChanged;
 use App\Http\Requests\User\ConfirmLoginRequest;
 use App\Http\Requests\User\LoginRequest;
 use App\Http\Requests\User\RegisterRequest;
@@ -14,6 +15,7 @@ use App\Services\LoginService;
 use App\Services\RegistrationService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Jenssegers\Agent\Agent;
 use OpenApi\Annotations as OA;
@@ -348,6 +350,15 @@ class AuthController extends Controller
      */
     public function logout(): JsonResponse
     {
+        /** @var User $user */
+        $user = Auth::user();
+
+        // Переводим пользователя в офлайн и уведомляем всех участников его чатов
+        if ($user) {
+            $user->setOffline();
+            event(new UserPresenceChanged($user));
+        }
+
         JWTAuth::invalidate(JWTAuth::getToken());
 
         return response()->json(['message' => 'Successfully logged out']);

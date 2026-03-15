@@ -37,16 +37,20 @@ class StatusService
     {
         $inactivityThreshold = now()->subMinutes(self::INACTIVITY_TIMEOUT_MINUTES);
 
-        $count = User::where('status', User::STATUS_ONLINE)
+        $users = User::where('status', User::STATUS_ONLINE)
             ->where(function ($query) use ($inactivityThreshold) {
                 $query->whereNull('last_seen_at')
                     ->orWhere('last_seen_at', '<', $inactivityThreshold);
             })
-            ->update([
-                'status' => User::STATUS_OFFLINE,
-            ]);
+            ->get();
 
-        return (int)$count;
+        foreach ($users as $user) {
+            // Не перезаписываем last_seen_at — оставляем время реальной последней активности
+            $user->update(['status' => User::STATUS_OFFLINE]);
+            event(new UserPresenceChanged($user));
+        }
+
+        return $users->count();
     }
 
     /**
@@ -73,13 +77,22 @@ class StatusService
     }
 
     /**
-     * Обновить время последнего онлайна при активности
+     * Обновить время последнего онлайна при активности.
+     * Если пользователь был офлайн — переводит в онлайн и уведомляет подписчиков.
      */
     public function updateLastSeen(User $user): void
     {
-        // Обновляем только если статус ONLINE
-        if ($user->isOnline()) {
-            $user->update(['last_seen_at' => now()]);
+        $wasOffline = !$user->isOnline();
+
+        $user->update([
+            'status'       => User::STATUS_ONLINE,
+            'last_seen_at' => now(),
+        ]);
+
+        // Уведомляем подписчиков только при переходе офлайн → онлайн
+        if ($wasOffline) {
+            $user->refresh();
+            event(new UserPresenceChanged($user));
         }
     }
 

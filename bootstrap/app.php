@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -24,6 +25,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'api/*',
             'sanctum/csrf-cookie',
         ]);
+    })
+    ->withSchedule(function (Schedule $schedule): void {
+        // Переводим неактивных пользователей в оффлайн каждую минуту
+        $schedule->command('users:update-offline-status')->everyMinute();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
