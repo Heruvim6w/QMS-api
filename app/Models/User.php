@@ -332,7 +332,7 @@ class User extends Authenticatable implements JWTSubject
         }
 
         // Проверяем кастомный статус (макс 50 символов)
-        if ($customStatus && strlen($customStatus) > 50) {
+        if ($customStatus && mb_strlen($customStatus) > 50) {
             throw new \InvalidArgumentException('Custom status cannot exceed 50 characters');
         }
 
