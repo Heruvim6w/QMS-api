@@ -190,6 +190,11 @@ class AuthController extends Controller
                 'email' => $user->email,
                 'uin' => $user->uin,
                 'username' => $user->username,
+                'status' => $user->status,
+                'online_status' => $user->online_status,
+                'custom_status' => $user->custom_status,
+                'locale' => $user->locale,
+                'last_seen_at' => $user->last_seen_at,
             ],
             'requires_confirmation' => false,
         ]);
@@ -264,6 +269,12 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'uin' => $user->uin,
+                'username' => $user->username,
+                'status' => $user->status,
+                'online_status' => $user->online_status,
+                'custom_status' => $user->custom_status,
+                'locale' => $user->locale,
+                'last_seen_at' => $user->last_seen_at,
             ] : null,
         ];
 
