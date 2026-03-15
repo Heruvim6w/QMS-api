@@ -135,4 +135,18 @@ class Chat extends Model
     {
         return $this->creator_id === $user->id;
     }
+
+    /**
+     * Получить количество непрочитанных сообщений для пользователя
+     */
+    public function getUnreadCountForUser(User $user): int
+    {
+        return $this->messages()
+            ->where('sender_id', '!=', $user->id) // Исключаем свои сообщения
+            ->whereDoesntHave('readStatuses', function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                    ->whereNotNull('read_at');
+            })
+            ->count();
+    }
 }

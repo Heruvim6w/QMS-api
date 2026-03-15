@@ -439,6 +439,53 @@ class ChatController extends Controller
 
     /**
      * @OA\Post(
+     *     path="/api/v1/chats/{id}/mark-as-read",
+     *     operationId="markChatAsRead",
+     *     summary="Mark all messages in chat as read",
+     *     description="Mark all unread messages in the chat as read for the current user. Updates message_read_status table.",
+     *     tags={"Chats"},
+     *     security={{"bearerAuth":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         required=true,
+     *         description="Chat ID",
+     *         @OA\Schema(type="integer", example=1)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Messages marked as read",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="status", type="string", example="marked_as_read"),
+     *             @OA\Property(property="marked_count", type="integer", example=5)
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="Chat not found"
+     *     )
+     * )
+     */
+    public function markAsRead(int $id): JsonResponse
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $chat = $this->chatService->findById($id, $user);
+
+        // Получаем количество непрочитанных перед пометкой
+        $unreadCount = $chat->getUnreadCountForUser($user);
+
+        $this->chatService->markChatAsRead($chat, $user);
+
+        return response()->json([
+            'status' => 'marked_as_read',
+            'marked_count' => $unreadCount,
+        ]);
+    }
+
+    /**
+     * @OA\Post(
      *     path="/api/v1/chats/get-or-create-private/{userId}",
      *     summary="Get or create a private chat with a specific user",
      *     tags={"Chats"},

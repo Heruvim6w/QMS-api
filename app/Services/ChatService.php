@@ -136,12 +136,16 @@ class ChatService
         foreach ($chats as $chat) {
             $msg = $chat->lastMessage;
             if (!$msg || $msg->type !== \App\Models\Message::TYPE_TEXT) {
+                // Добавляем unread_count
+                $chat->setAttribute('unread_count', $chat->getUnreadCountForUser($user));
                 continue;
             }
 
             try {
                 $encryptedKey = $msg->keys->firstWhere('user_id', $user->id)?->encrypted_key;
                 if ($encryptedKey === null) {
+                    // Добавляем unread_count
+                    $chat->setAttribute('unread_count', $chat->getUnreadCountForUser($user));
                     continue;
                 }
 
@@ -157,6 +161,9 @@ class ChatService
             } catch (\Throwable) {
                 // Не удалось расшифровать — пропускаем, frontend покажет заглушку
             }
+
+            // Добавляем unread_count для каждого чата
+            $chat->setAttribute('unread_count', $chat->getUnreadCountForUser($user));
         }
 
         return $chats;
@@ -280,12 +287,32 @@ class ChatService
     }
 
     /**
-     * Включить/выключить уведомления для чата
+     * Переключить режим mute для чата
      */
-    public function toggleMute(Chat $chat, User $user, bool $muted): void
+    public function toggleMute(Chat $chat, User $user, bool $isMuted): void
     {
         $chat->users()->updateExistingPivot($user->id, [
-            'is_muted' => $muted,
+            'is_muted' => $isMuted,
         ]);
+    }
+
+    /**
+     * Пометить все сообщения чата как прочитанные для пользователя
+     */
+    public function markChatAsRead(Chat $chat, User $user): void
+    {
+        // Получаем все непрочитанные сообщения в чате (не от этого пользователя)
+        $unreadMessages = $chat->messages()
+            ->where('sender_id', '!=', $user->id)
+            ->whereDoesntHave('readStatuses', function ($query) use ($user) {
+                $query->where('user_id', $user->id)
+                    ->whereNotNull('read_at');
+            })
+            ->get();
+
+        // Помечаем каждое как прочитанное
+        foreach ($unreadMessages as $message) {
+            $message->markAsReadBy($user);
+        }
     }
 }

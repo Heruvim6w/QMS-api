@@ -53,6 +53,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/chats/{id}/add-user', [ChatController::class, 'addUser']);
         Route::post('/chats/{id}/remove-user/{userId}', [ChatController::class, 'removeUser']);
         Route::post('/chats/{id}/mute', [ChatController::class, 'toggleMute']);
+        Route::post('/chats/{id}/mark-as-read', [ChatController::class, 'markAsRead']);
         Route::post('/chats/get-or-create-private/{userId}', [ChatController::class, 'getOrCreatePrivateChat']);
         Route::get('/chats/favorites/get-or-create', [ChatController::class, 'getOrCreateFavoritesChat']);
 
