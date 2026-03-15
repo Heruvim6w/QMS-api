@@ -13,7 +13,9 @@ use App\Services\LocalizationService;
 use App\Services\LoginService;
 use App\Services\StatusService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use OpenApi\Annotations as OA;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -117,6 +119,42 @@ class UserProfileController extends Controller
         $user = Auth::user();
 
         $user->update(['username' => null]);
+
+        return response()->json(['status' => 'success']);
+    }
+
+    public function uploadAvatar(Request $request): JsonResponse
+    {
+        $request->validate([
+            'avatar' => 'required|image|mimes:jpeg,png,gif,webp|max:5120',
+        ]);
+
+        /** @var User $user */
+        $user = Auth::user();
+
+        // Удаляем старый аватар
+        if ($user->avatar) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+
+        $path = $request->file('avatar')->store('avatars', 'public');
+        $user->update(['avatar' => $path]);
+
+        return response()->json([
+            'status'     => 'success',
+            'avatar_url' => Storage::disk('public')->url($path),
+        ]);
+    }
+
+    public function deleteAvatar(): JsonResponse
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        if ($user->avatar) {
+            Storage::disk('public')->delete($user->avatar);
+            $user->update(['avatar' => null]);
+        }
 
         return response()->json(['status' => 'success']);
     }

@@ -189,6 +189,7 @@ class User extends Authenticatable implements JWTSubject
         'custom_status',
         'last_seen_at',
         'locale',
+        'avatar',
     ];
 
     protected $hidden = [
@@ -196,6 +197,8 @@ class User extends Authenticatable implements JWTSubject
         'remember_token',
         'private_key',
     ];
+
+    protected $appends = ['avatar_url'];
 
     protected $casts = [
         'email_verified_at' => 'datetime',
@@ -230,6 +233,18 @@ class User extends Authenticatable implements JWTSubject
     public static function generateUIN(): string
     {
         return (string) random_int(10000000, 99999999);
+    }
+
+    /**
+     * Полный URL аватара или null если аватара нет
+     */
+    public function getAvatarUrlAttribute(): ?string
+    {
+        if (! $this->avatar) {
+            return null;
+        }
+
+        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->avatar);
     }
 
     /**

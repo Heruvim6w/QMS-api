@@ -17,6 +17,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Jenssegers\Agent\Agent;
 use OpenApi\Annotations as OA;
 use Symfony\Component\HttpFoundation\Response;
@@ -195,6 +196,7 @@ class AuthController extends Controller
                 'custom_status' => $user->custom_status,
                 'locale' => $user->locale,
                 'last_seen_at' => $user->last_seen_at,
+                'avatar_url' => $user->avatar ? Storage::disk('public')->url($user->avatar) : null,
             ],
             'requires_confirmation' => false,
         ]);
@@ -275,6 +277,7 @@ class AuthController extends Controller
                 'custom_status' => $user->custom_status,
                 'locale' => $user->locale,
                 'last_seen_at' => $user->last_seen_at,
+                'avatar_url' => $user->avatar ? Storage::disk('public')->url($user->avatar) : null,
             ] : null,
         ];
 
