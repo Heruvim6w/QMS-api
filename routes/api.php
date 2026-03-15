@@ -24,6 +24,7 @@ Route::prefix('v1')->group(function () {
         // User profile routes
         Route::get('/users/profile', [UserProfileController::class, 'getProfile']);
         Route::post('/users/username', [UserProfileController::class, 'setUsername']);
+        Route::delete('/users/username', [UserProfileController::class, 'deleteUsername']);
         Route::get('/users/search', [UserProfileController::class, 'searchUser']);
         Route::get('/users/{identifier}', [UserProfileController::class, 'getUserByIdentifier']);
 

@@ -111,6 +111,16 @@ class UserProfileController extends Controller
         ]);
     }
 
+    public function deleteUsername(): JsonResponse
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $user->update(['username' => null]);
+
+        return response()->json(['status' => 'success']);
+    }
+
     /**
      * @OA\Get(
      *     path="/api/v1/users/search",
