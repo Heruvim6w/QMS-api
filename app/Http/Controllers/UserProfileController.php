@@ -254,18 +254,47 @@ class UserProfileController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        $loginService = new LoginService();
-        $sessions = $loginService->getConfirmedSessions($user);
+        $currentUserAgent = request()->header('User-Agent');
+        $currentIp        = request()->ip();
 
-        return response()->json($sessions->map(function ($session) {
+        $loginService = new LoginService();
+        $sessions     = $loginService->getConfirmedSessions($user);
+
+        return response()->json($sessions->map(function ($session) use ($currentUserAgent, $currentIp) {
             return [
-                'id' => $session->id,
-                'device_name' => $session->device_name,
-                'ip_address' => $session->ip_address,
+                'id'           => $session->id,
+                'device_name'  => $session->device_name,
+                'ip_address'   => $session->ip_address,
                 'confirmed_at' => $session->confirmed_at,
-                'expires_at' => $session->expires_at,
+                'expires_at'   => $session->expires_at,
+                'is_current'   => $session->ip_address === $currentIp
+                                  && $session->user_agent === $currentUserAgent,
             ];
         }));
+    }
+
+    public function endOtherSessions(): JsonResponse
+    {
+        /** @var User $user */
+        $user = Auth::user();
+
+        $currentUserAgent = request()->header('User-Agent');
+        $currentIp        = request()->ip();
+
+        $loginService = new LoginService();
+        $sessions     = $loginService->getConfirmedSessions($user);
+
+        $endedCount = 0;
+        foreach ($sessions as $session) {
+            $isCurrent = $session->ip_address === $currentIp
+                         && $session->user_agent === $currentUserAgent;
+            if (! $isCurrent) {
+                $loginService->endSession($user, $session->id);
+                $endedCount++;
+            }
+        }
+
+        return response()->json(['status' => 'success', 'ended_count' => $endedCount]);
     }
 
     /**

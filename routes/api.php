@@ -34,6 +34,7 @@ Route::prefix('v1')->group(function () {
 
         // Session management routes
         Route::get('/sessions', [UserProfileController::class, 'getSessions']);
+        Route::delete('/sessions/others', [UserProfileController::class, 'endOtherSessions']);
         Route::delete('/sessions/{sessionId}', [UserProfileController::class, 'endSession']);
 
         // Status management routes
