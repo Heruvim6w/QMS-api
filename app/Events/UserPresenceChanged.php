@@ -55,6 +55,7 @@ class UserPresenceChanged implements ShouldBroadcastNow
         return [
             'user_id'       => $this->user->id,
             'status'        => $this->user->status,
+            'online_status' => $this->user->online_status,
             'custom_status' => $this->user->custom_status,
             'last_seen_at'  => $this->user->last_seen_at?->toIso8601String(),
         ];
