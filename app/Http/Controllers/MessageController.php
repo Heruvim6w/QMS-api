@@ -219,6 +219,7 @@ class MessageController extends Controller
             return response()->json([
                 'id' => $message->id,
                 'chat_id' => $message->chat_id,
+                'sender_id' => $message->sender_id,
                 'sender' => $message->sender,
                 'content' => $decryptedContent,
                 'type' => $message->type,
@@ -329,6 +330,7 @@ class MessageController extends Controller
                 $result[] = [
                     'id' => $message->id,
                     'chat_id' => $message->chat_id,
+                    'sender_id' => $message->sender_id,
                     'sender' => $message->sender,
                     'content' => $decryptedContent,
                     'type' => $message->type,
